@@ -1338,25 +1338,6 @@
      * ============================================================ */
 
     function renderTopbar() {
-      const wrap = el("div", {});
-      // Demo mode banner (only if Firebase config is present but unreachable)
-      if (FIREBASE_CONFIG_PRESENT && !FIREBASE_ENABLED) {
-        const banner = el("div", {
-          style: {
-            background: "rgba(104,227,113,0.08)",
-            borderBottom: "1px solid rgba(104,227,113,0.2)",
-            color: "var(--primary)",
-            padding: "6px 16px",
-            textAlign: "center",
-            fontFamily: "var(--mono)",
-            fontSize: "11px",
-            textTransform: "uppercase",
-            letterSpacing: "0.1em",
-          },
-        });
-        banner.innerHTML = `// demo mode — firebase unreachable from this preview. data is local only.`;
-        wrap.appendChild(banner);
-      }
       const bar = el("div", { class: "topbar" });
       const inner = el("div", { class: "center-col row" });
       const brand = el("a", { href: "/", class: "brand" });
@@ -1364,8 +1345,7 @@
       const links = el("div", { class: "topbar-links topbar-user-slot" });
       inner.append(brand, links);
       bar.appendChild(inner);
-      wrap.appendChild(bar);
-      return wrap;
+      return bar;
     }
 
     /* ============= Landing ============= */
@@ -1520,11 +1500,10 @@
         form.append(divider, google);
       }
 
-      if (!FIREBASE_ENABLED) {
-        const notice = el("div", { class: "card-soft small", style: { marginTop: "12px", textAlign: "center", color: "var(--muted)" } });
-        notice.innerHTML = `<span class="mono primary-text">// demo mode</span><br/>try <span class="mono">demo@kaytact.app</span> / <span class="mono">password123</span>`;
-        form.appendChild(notice);
-      }
+      // (No demo-mode hint shown — on production this branch never fires
+      //  because FIREBASE_ENABLED stays true after the connectivity probe.
+      //  In sandbox preview, the silent fallback keeps the UI explorable
+      //  without advertising demo creds.)
 
       const foot = el("div", { class: "auth-foot" });
       foot.innerHTML = `<a href="${altHref}">${escapeHtml(altText)}</a>`;

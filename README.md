@@ -1,8 +1,6 @@
 # Kaytact — Your contact. One tap away.
 
-A premium, mobile-first digital contact / vCard platform built as a **single `index.html` file**. No build step. No framework. Just deploy and go.
-
-**Firebase is already configured** — your `kaytact` project's web config is baked into `index.html`. Deploy and it works.
+A premium, mobile-first digital contact / vCard platform built as a **single `index.html` file**. Firebase is wired in. Deploy to Vercel and it's a real working product.
 
 ---
 
@@ -23,69 +21,33 @@ kaytact/
 └── README.md           ← This file
 ```
 
-That's it. No `package.json`, no Node, no React. Just push to GitHub and import into Vercel.
+No `package.json`, no Node, no React. Push to GitHub and import into Vercel.
 
 ---
 
-## Quick deploy to Vercel (5 minutes)
+## ⚡ To make it work, you need to do these 3 things in Firebase
 
-### Option A — GitHub (recommended)
+Your Firebase config is already baked into `index.html`. But Firebase starts locked down. You must:
 
-1. **Create a new GitHub repo** (e.g. `kaytact`).
-2. **Upload all files in this `kaytact/` folder** to the root of the repo. Don't nest them in a subfolder — they need to live at the repo root.
-3. Go to **[vercel.com/new](https://vercel.com/new)**.
-4. **Import** your GitHub repo.
-5. Vercel auto-detects "Other" framework — that's fine. **No build command, no output directory** — leave both blank.
-6. Click **Deploy**. Your Kaytact is live at `your-project.vercel.app`.
+### 1. Enable Email/Password auth
+- Firebase Console → **Build → Authentication → Sign-in method**
+- Click **Email/Password** → Enable → Save
+- (Optional) Enable **Google** sign-in too
 
-### Option B — Vercel CLI
+### 2. Create the Firestore database
+- Firebase Console → **Build → Firestore Database → Create database**
+- Pick **production mode** (locked down by default — we'll add rules next)
+- Pick a region close to your users
 
-```bash
-npm i -g vercel
-cd kaytact
-vercel              # preview deploy
-vercel --prod       # production deploy
-```
-
-### Custom domain (kaytact.com)
-
-In Vercel → Project → Settings → Domains → add `kaytact.com` and `www.kaytact.com`. Follow the DNS instructions Vercel shows you.
-
----
-
-## Firebase — already configured
-
-Your Firebase web app config for the `kaytact` project is already pasted into `index.html`:
-
-```js
-const firebaseConfig = {
-  apiKey: "AIzaSyDeJULgl0gRPgbThQSXoa-sK_DCvvjj6lk",
-  authDomain: "kaytact.firebaseapp.com",
-  projectId: "kaytact",
-  storageBucket: "kaytact.firebasestorage.app",
-  messagingSenderId: "828138537133",
-  appId: "1:828138537133:web:61125059f1d9069de40624",
-  measurementId: "G-W3NYRVL3JN"
-};
-```
-
-### Still need to do in Firebase Console:
-
-1. **Enable Authentication**: Build → Authentication → Sign-in method → enable **Email/Password** (and Google if you want).
-2. **Create Firestore Database**: Build → Firestore Database → Create database (production mode).
-3. **Authorized domains**: Authentication → Settings → Authorized domains → add:
-   - `your-project.vercel.app`
-   - `kaytact.com` (when you wire the custom domain)
-
-### Lock down Firestore (paste into Rules tab):
+### 3. Paste these Firestore rules
+- Firebase Console → **Firestore Database → Rules tab**
+- Replace everything with:
 
 ```
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Public can read profiles (so /username works without login)
-    // Owners can write their own profile.
     match /profiles/{uid} {
       allow read: if resource.data.disabled == false || request.auth.uid == uid;
       allow create: if request.auth != null && request.auth.uid == uid
@@ -95,7 +57,6 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // Username → uid index. Public read, owner write.
     match /usernames/{username} {
       allow read: if true;
       allow create: if request.auth != null
@@ -104,10 +65,9 @@ service cloud.firestore {
                             && request.resource.data.uid == request.auth.uid;
     }
 
-    // Stats: public read, anyone may increment (visitors aren't logged in)
     match /stats/{username} {
       allow read: if true;
-      allow update: if true;  // increments via FieldValue.increment
+      allow update: if true;
       allow create: if request.auth != null;
     }
 
@@ -118,9 +78,15 @@ service cloud.firestore {
 }
 ```
 
-### Set admin emails (optional)
+Click **Publish**.
 
-Open `index.html` and find this line near the top of `<body>`:
+### 4. Add your deployment domain to authorized domains
+- Firebase Console → **Authentication → Settings → Authorized domains**
+- Add `your-project.vercel.app` (after first deploy, you'll know the URL)
+- Add `kaytact.com` (when you wire the custom domain)
+
+### 5. (Optional) Set your admin email
+Open `index.html`, find this line near the top of `<body>`:
 
 ```html
 <script>
@@ -128,20 +94,68 @@ Open `index.html` and find this line near the top of `<body>`:
 </script>
 ```
 
-Replace `you@example.com` with your real admin email(s) — comma-separated. Anyone signed in with one of those emails gets access to `/admin`.
+Replace `you@example.com` with your real admin email. Sign up with that email → you get access to `/admin`.
 
 ---
 
-## Design system
+## Quick deploy to Vercel
 
-Kaytact uses a minimal "hacker-lime" aesthetic:
+### Option A — GitHub (recommended)
 
-- **Background**: `#070E16` (deep navy, almost black)
+1. Create a new GitHub repo (e.g. `kaytact`)
+2. Upload all files in this `kaytact/` folder to the **root** of the repo (don't nest them in a subfolder)
+3. Go to **[vercel.com/new](https://vercel.com/new)**
+4. Import your GitHub repo
+5. Vercel auto-detects "Other" framework — leave **Build Command** and **Output Directory** blank
+6. Click **Deploy**
+
+### Option B — Vercel CLI
+
+```bash
+npm i -g vercel
+cd kaytact
+vercel --prod
+```
+
+### Custom domain (kaytact.com)
+
+In Vercel → Project → Settings → Domains → add `kaytact.com` and `www.kaytact.com`. Follow Vercel's DNS instructions.
+
+---
+
+## What's real vs. what's a fallback
+
+| Feature | Status |
+|---|---|
+| Firebase config | ✅ Real — baked into `index.html` |
+| Email/password auth | ✅ Real — uses Firebase Auth (after step 1) |
+| Profile storage | ✅ Real — uses Firestore (after steps 2 & 3) |
+| Stats tracking | ✅ Real — uses Firestore `FieldValue.increment` |
+| vCard generation | ✅ Real — generated client-side, downloads as `.vcf` |
+| QR codes | ✅ Real — generated client-side via vendored `qrcode-generator` |
+| Share buttons | ✅ Real — Web Share API + WhatsApp/Facebook/X deep links |
+| Admin panel | ✅ Real — gated by `ADMIN_EMAILS` config |
+
+### Why the sandbox preview might look "empty" or fail to load profiles
+
+This sandbox blocks outbound network to `firestore.googleapis.com`. So when you preview here:
+- Firebase Auth won't work (you can't actually log in)
+- Firestore reads/writes will fail (profiles won't load)
+
+To keep the preview explorable, the app silently falls back to `localStorage` when Firebase is unreachable. **This fallback never fires on Vercel** (where outbound network is unrestricted) — the real Firebase database handles everything.
+
+**Test on Vercel for the real experience.**
+
+---
+
+## Design system — "hacker-lime"
+
+- **Background**: `#070E16` (deep navy)
 - **Foreground**: `#EDF2F8` (off-white)
-- **Accent**: `#68E371` (lime green) — used for primary buttons, eyebrows, accent text
+- **Accent**: `#68E371` (lime green) — primary buttons, eyebrows, accent text
 - **WhatsApp**: `#25D366` — only on the WhatsApp button (brand exception)
 - **Border**: `#1B2530` — always 1px
-- **Card**: `#111921` at 60% / 40% opacity with `backdrop-blur(8px)`
+- **Card**: `#111921` at 60% opacity with `backdrop-blur(8px)`
 - **Fonts**: Space Grotesk (UI) + JetBrains Mono (eyebrows, meta, system text)
 - **Eyebrows**: `// code-comment` style — mono, uppercase, wide tracking, lime
 
@@ -151,12 +165,12 @@ Kaytact uses a minimal "hacker-lime" aesthetic:
 
 Everything is in **one file**: `index.html`. It uses:
 
-- **Vanilla JS** with a tiny path-based SPA router (`/`, `/login`, `/dashboard`, `/awwal` etc.)
+- **Vanilla JS** with a tiny path-based SPA router
 - **Firebase Web SDK (modular, ESM via CDN)** for auth + Firestore — called directly from the browser, no proxy APIs
 - **`qrcode-generator` library** (vendored locally as `qr-lib.js`) for QR generation
 - **Web Share API** for native share menus on iOS / Android
 - **vCard 3.0** generated in the browser and downloaded as a real `.vcf` file
-- **`vercel.json` rewrites** so `/awwal` etc. resolve to `index.html` (SPA pattern)
+- **`vercel.json` rewrites** so `/awwal` etc. resolve to `index.html`
 - **PWA** (manifest + service worker) — installable, offline-capable
 
 ### Routing
@@ -179,7 +193,7 @@ Everything is in **one file**: `index.html`. It uses:
 - [x] Hacker-lime aesthetic — navy bg, lime accent, Space Grotesk + JetBrains Mono, glass cards
 - [x] Mobile-first, no horizontal scroll, large tap targets, iOS safe areas
 - [x] Firebase Auth: email/password + Google sign-in + password reset + persistent session
-- [x] Firestore-backed profiles + stats
+- [x] Firestore-backed profiles + stats with secure rules
 - [x] Username system with validation + duplicate check + reserved words
 - [x] Public profile card: photo, name, title, company, bio, location
 - [x] SAVE CONTACT button → generates real vCard `.vcf` (multi-phone, socials, photo URL, etc.)
@@ -204,29 +218,27 @@ Everything is in **one file**: `index.html`. It uses:
 
 ## Local development
 
-Because it's a single HTML file with module scripts, you need to serve it over HTTP (not `file://`) so ES modules work:
+Because it's a single HTML file with module scripts, serve over HTTP (not `file://`) so ES modules work:
 
 ```bash
-# Python
 python3 -m http.server 8080
-
-# Or Node
+# or
 npx serve .
 ```
 
-Open `http://localhost:8080` in your browser.
+Open `http://localhost:8080`. Firebase will be reachable from your local machine (unlike the sandbox preview).
 
 ---
 
 ## Tech notes
 
-- **Why no framework?** Per your spec. Vanilla JS keeps the file under 200 KB, loads instantly, has zero build step, and survives any future framework churn.
-- **Why Firebase from the browser?** Per your spec. Firebase Web SDK is designed for this — the config keys are public, security is enforced by Firestore Rules + Auth.
-- **Image uploads** are stored as base64 data URLs in Firestore (resized to ≤512px client-side). For larger images, swap in Firebase Storage — the rest of the app doesn't care.
-- **Stats tracking** uses `FieldValue.increment(1)` so writes are atomic and idempotent enough for production traffic.
+- **Why no framework?** Per your spec. Vanilla JS keeps the file small, loads instantly, has zero build step.
+- **Why Firebase from the browser?** Per your spec. Firebase Web SDK is designed for this — config keys are public, security is enforced by Firestore Rules + Auth.
+- **Image uploads** are stored as base64 data URLs in Firestore (resized to ≤512px client-side). For larger images, swap in Firebase Storage.
+- **Stats tracking** uses `FieldValue.increment(1)` so writes are atomic and idempotent.
 
 ---
 
 ## License
 
-MIT — use it, fork it, sell it. Build your contact card empire.
+MIT — use it, fork it, sell it.
