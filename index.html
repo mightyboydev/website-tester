@@ -600,6 +600,71 @@
     body { overscroll-behavior-y: none; }
     .safe-b { padding-bottom: env(safe-area-inset-bottom); }
 
+    /* ===== Contact Collector ===== */
+    .collector-head { text-align: center; margin-bottom: 24px; }
+    .collector-head h1 { font-size: 24px; margin-top: 8px; }
+    .collector-head .sub { color: var(--muted); font-size: 13px; margin-top: 6px; }
+    .collector-link-box {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 14px; border-radius: var(--radius);
+      background: rgba(17,25,33,0.4); border: 1px solid var(--border);
+      font-family: var(--mono); font-size: 13px; color: var(--primary);
+      word-break: break-all;
+    }
+    .collector-link-box .copy-btn {
+      margin-left: auto; flex-shrink: 0;
+      padding: 4px 10px; border-radius: 6px;
+      background: transparent; border: 1px solid var(--border);
+      color: var(--muted); font-family: var(--mono); font-size: 11px;
+      cursor: pointer; transition: all 0.15s; text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    .collector-link-box .copy-btn:hover { color: var(--primary); border-color: var(--primary); }
+
+    .contact-list { display: flex; flex-direction: column; gap: 6px; }
+    .contact-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 12px; border-radius: var(--radius);
+      background: rgba(17,25,33,0.4); border: 1px solid var(--border);
+      transition: border-color 0.15s;
+    }
+    .contact-item:hover { border-color: var(--muted-2); }
+    .contact-item .avatar-sm {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: rgba(104,227,113,0.1); color: var(--primary);
+      display: grid; place-items: center; font-weight: 700; font-size: 13px;
+      flex-shrink: 0;
+    }
+    .contact-item .info { flex: 1; min-width: 0; }
+    .contact-item .info .name { font-weight: 500; font-size: 14px; }
+    .contact-item .info .phone { font-family: var(--mono); font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .contact-item .del {
+      padding: 6px; border-radius: 6px; color: var(--muted-2);
+      cursor: pointer; transition: color 0.15s;
+    }
+    .contact-item .del:hover { color: var(--red); }
+
+    .success-state {
+      text-align: center; padding: 32px 16px;
+    }
+    .success-state .check-circle {
+      width: 56px; height: 56px; margin: 0 auto 16px;
+      border-radius: 50%; background: rgba(104,227,113,0.12);
+      display: grid; place-items: center; color: var(--primary);
+    }
+    .success-state .check-circle svg { width: 28px; height: 28px; }
+    .success-state h3 { font-size: 18px; margin-bottom: 8px; }
+    .success-state p { color: var(--muted); font-size: 14px; }
+
+    .country-select {
+      display: flex; gap: 6px; align-items: stretch;
+    }
+    .country-select .cc-input {
+      flex: 0 0 80px; min-width: 80px;
+    }
+    .country-select .phone-input {
+      flex: 1; min-width: 0;
+    }
+
     /* Mobile: tighten on very small screens */
     @media (max-width: 380px) {
       body { font-size: 14px; }
@@ -640,7 +705,7 @@
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
     import {
       getFirestore, doc, setDoc, getDoc, updateDoc, collection,
-      getDocs, increment,
+      getDocs, increment, addDoc, deleteDoc,
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
     /* ===== Firebase configuration =====
@@ -759,7 +824,7 @@
 
     /* ============= Demo backend (localStorage) ============= */
     const DEMO = {
-      keys: { profiles: "kaytact.profiles", users: "kaytact.users", usernames: "kaytact.usernames", stats: "kaytact.stats", session: "kaytact.session" },
+      keys: { profiles: "kaytact.profiles", users: "kaytact.users", usernames: "kaytact.usernames", stats: "kaytact.stats", session: "kaytact.session", slugs: "kaytact.slugs", tenants: "kaytact.tenants" },
       read(k, f) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : f; } catch { return f; } },
       write(k, v) { localStorage.setItem(k, JSON.stringify(v)); },
       genUid() { return "u_" + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4); },
@@ -1026,6 +1091,144 @@
           DEMO.write(DEMO.keys.profiles, profiles);
         }
       },
+
+      /* ============================================================
+       *  CONTACT COLLECTOR (multi-tenant)
+       *  - tenants/{adminId}/profile (admin-only read/write)
+       *  - tenants/{adminId}/contacts/{contactId} (public create, admin read)
+       *  - slugs/{slug} (public read, owner write)
+       * ============================================================ */
+
+      async isSlugTaken(slug) {
+        slug = slug.toLowerCase();
+        if (FIREBASE_ENABLED) {
+          const snap = await getDoc(doc(fbDb, "slugs", slug));
+          return snap.exists();
+        } else {
+          const idx = DEMO.read(DEMO.keys.slugs, {});
+          return Boolean(idx[slug]);
+        }
+      },
+
+      async createTenant({ businessName, slug }) {
+        // Requires authenticated user (state.user must be set)
+        if (!state.user) throw new Error("Must be signed in to create a tenant.");
+        slug = slug.toLowerCase();
+        const adminId = state.user.uid;
+        if (FIREBASE_ENABLED) {
+          // Create slug → adminId index (public read, owner write)
+          // This will fail with ALREADY_EXISTS if slug is taken.
+          await setDoc(doc(fbDb, "slugs", slug), {
+            adminId,
+            businessName,
+            slug,
+            createdAt: Date.now(),
+          });
+          // Create tenant profile (admin-only read/write)
+          await setDoc(doc(fbDb, "tenants", adminId, "profile", "main"), {
+            businessName,
+            slug,
+            adminEmail: state.user.email || "",
+            adminId,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+          });
+        } else {
+          const slugs = DEMO.read(DEMO.keys.slugs, {});
+          if (slugs[slug]) throw new Error("Slug already taken");
+          slugs[slug] = { adminId, businessName, slug, createdAt: Date.now() };
+          DEMO.write(DEMO.keys.slugs, slugs);
+          const tenants = DEMO.read(DEMO.keys.tenants, {});
+          tenants[adminId] = {
+            profile: { businessName, slug, adminEmail: state.user.email || "", adminId, createdAt: Date.now(), updatedAt: Date.now() },
+            contacts: [],
+          };
+          DEMO.write(DEMO.keys.tenants, tenants);
+        }
+      },
+
+      async getTenantBySlug(slug) {
+        // Public — reads slugs/{slug} which has public read access
+        slug = slug.toLowerCase();
+        if (FIREBASE_ENABLED) {
+          const snap = await getDoc(doc(fbDb, "slugs", slug));
+          if (!snap.exists()) return null;
+          return snap.data();
+        } else {
+          const idx = DEMO.read(DEMO.keys.slugs, {});
+          return idx[slug] || null;
+        }
+      },
+
+      async submitContact(slug, { firstName, lastName, countryCode, phone }) {
+        // Public — no auth required. Looks up adminId from slug, writes to
+        // tenants/{adminId}/contacts (public create per rules)
+        slug = slug.toLowerCase();
+        const tenant = await this.getTenantBySlug(slug);
+        if (!tenant) throw new Error("Collection page not found");
+        const adminId = tenant.adminId;
+        const fullPhone = (countryCode || "").replace(/[^\d+]/g, "") + (phone || "").replace(/[^\d]/g, "");
+        const contact = {
+          firstName: (firstName || "").trim(),
+          lastName: (lastName || "").trim(),
+          countryCode: (countryCode || "").trim(),
+          phone: (phone || "").trim(),
+          fullPhone,
+          createdAt: Date.now(),
+        };
+        if (FIREBASE_ENABLED) {
+          // addDoc auto-generates the contactId
+          await addDoc(collection(fbDb, "tenants", adminId, "contacts"), contact);
+        } else {
+          const tenants = DEMO.read(DEMO.keys.tenants, {});
+          if (!tenants[adminId]) throw new Error("Tenant not found");
+          tenants[adminId].contacts.push({ id: "c" + Date.now() + Math.random().toString(36).slice(2, 6), ...contact });
+          DEMO.write(DEMO.keys.tenants, tenants);
+        }
+        return contact;
+      },
+
+      async getMyTenant() {
+        // Auth required — reads tenants/{uid}/profile (admin-only)
+        if (!state.user) return null;
+        const adminId = state.user.uid;
+        if (FIREBASE_ENABLED) {
+          const snap = await getDoc(doc(fbDb, "tenants", adminId, "profile", "main"));
+          if (!snap.exists()) return null;
+          return snap.data();
+        } else {
+          const tenants = DEMO.read(DEMO.keys.tenants, {});
+          return tenants[adminId]?.profile || null;
+        }
+      },
+
+      async getMyContacts() {
+        // Auth required — reads tenants/{uid}/contacts (admin-only)
+        if (!state.user) return [];
+        const adminId = state.user.uid;
+        if (FIREBASE_ENABLED) {
+          const snap = await getDocs(collection(fbDb, "tenants", adminId, "contacts"));
+          return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+            .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        } else {
+          const tenants = DEMO.read(DEMO.keys.tenants, {});
+          return (tenants[adminId]?.contacts || []).slice().sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        }
+      },
+
+      async deleteContact(contactId) {
+        if (!state.user) throw new Error("Must be signed in");
+        const adminId = state.user.uid;
+        if (FIREBASE_ENABLED) {
+          await deleteDoc(doc(fbDb, "tenants", adminId, "contacts", contactId));
+        } else {
+          const tenants = DEMO.read(DEMO.keys.tenants, {});
+          if (tenants[adminId]) {
+            tenants[adminId].contacts = tenants[adminId].contacts.filter((c) => c.id !== contactId);
+            DEMO.write(DEMO.keys.tenants, tenants);
+          }
+        }
+      },
     };
 
     function isAdminEmail(email) {
@@ -1049,10 +1252,20 @@
         // Use a normal-looking ID — Firestore reserves IDs starting with __.
         await Promise.race([
           getDoc(doc(fbDb, "usernames", "probe-connectivity-test")),
-          new Promise((_, reject) => setTimeout(() => reject(new Error("probe timeout")), 4000)),
+          new Promise((_, reject) => setTimeout(() => reject(new Error("probe timeout")), 5000)),
         ]);
         return true;
       } catch (e) {
+        // Distinguish between "network unreachable" (fall back to demo)
+        // and "permission denied" (Firebase is up, just needs rules published).
+        const msg = (e.message || "").toLowerCase();
+        if (msg.includes("permission-denied") || msg.includes("insufficient permissions") || msg.includes("missing or insufficient")) {
+          // Firebase IS reachable — the rules just block the read. Don't fall
+          // back to demo mode. The user needs to publish the Firestore rules.
+          console.warn("[kaytact] Firebase reachable but rules block reads. Publish the Firestore rules from the README.");
+          return true;
+        }
+        // Network error, timeout, or client offline → fall back to demo mode
         console.warn("[kaytact] Firebase unreachable, falling back to demo mode:", e.message);
         return false;
       }
@@ -1068,7 +1281,7 @@
       return { path, query: q };
     }
 
-    const RESERVED = new Set(["admin", "dashboard", "login", "signup", "forgot-password", "reset-password", "edit", "settings", "api", "manifest.json", "sw.js", "qr-lib.js", "icon.svg", "icon-192.png", "icon-512.png", "apple-touch-icon.png", "favicon.ico", "favicon.png", "robots.txt"]);
+    const RESERVED = new Set(["admin", "dashboard", "login", "signup", "forgot-password", "reset-password", "edit", "settings", "api", "manifest.json", "sw.js", "qr-lib.js", "icon.svg", "icon-192.png", "icon-512.png", "apple-touch-icon.png", "favicon.ico", "favicon.png", "robots.txt", "collector", "c"]);
 
     async function router() {
       const { path } = getRoute();
@@ -1088,6 +1301,15 @@
       if (normalizedPath === "/dashboard/analytics") return renderDashboardAnalytics();
       if (normalizedPath === "/dashboard/qr") return renderDashboardQR();
       if (normalizedPath === "/admin") return renderAdmin();
+      if (normalizedPath === "/collector") return renderCollectorDashboard();
+      if (normalizedPath === "/collector/signup") return renderCollectorSignup();
+      if (normalizedPath === "/collector/login") return renderCollectorLogin();
+
+      // /c/:slug — public submission page (no auth required)
+      if (normalizedPath.startsWith("/c/")) {
+        const slug = decodeURIComponent(normalizedPath.slice(3)).toLowerCase();
+        if (slug) return renderPublicSubmission(slug);
+      }
 
       const username = decodeURIComponent(normalizedPath.slice(1)).toLowerCase();
       if (username && !RESERVED.has(username)) return renderPublicProfile(username);
@@ -1182,6 +1404,57 @@
       if (!USERNAME_RE.test(u)) return { ok: false, msg: "Only lowercase letters, numbers, hyphens, underscores." };
       if (RESERVED.has(u)) return { ok: false, msg: "This username is reserved." };
       return { ok: true };
+    }
+
+    /* ============= Slug validation (for collector) ============= */
+    const SLUG_RE = /^[a-z][a-z0-9_-]{1,29}$/;
+    function validateSlug(s) {
+      s = (s || "").trim().toLowerCase();
+      if (!s) return { ok: false, msg: "Slug is required." };
+      if (s.length < 2) return { ok: false, msg: "Must be at least 2 characters." };
+      if (s.length > 30) return { ok: false, msg: "Must be 30 characters or fewer." };
+      if (CONSEC_RE.test(s)) return { ok: false, msg: "No consecutive hyphens or underscores." };
+      if (!/^[a-z]/.test(s)) return { ok: false, msg: "Must start with a letter." };
+      if (!SLUG_RE.test(s)) return { ok: false, msg: "Only lowercase letters, numbers, hyphens, underscores." };
+      return { ok: true };
+    }
+
+    /* ============= Multi-contact vCard builder =============
+     * Builds a single .vcf file containing multiple contacts. Most phones
+     * (iOS, Android) can import this and will add all contacts at once.
+     */
+    function buildBulkVCard(contacts) {
+      const entries = [];
+      for (const c of contacts) {
+        const first = escapeText((c.firstName || "").trim());
+        const last = escapeText((c.lastName || "").trim());
+        const name = escapeText(((c.firstName || "") + " " + (c.lastName || "")).trim() || "Unknown");
+        const phone = (c.fullPhone || "").replace(/[^\d+]/g, "");
+        const lines = [
+          "BEGIN:VCARD",
+          "VERSION:3.0",
+          `N:${last};${first};;;`,
+          `FN:${name}`,
+        ];
+        if (phone) lines.push(`TEL;TYPE=CELL,VOICE:${phone}`);
+        lines.push(`REV:${new Date(c.createdAt || Date.now()).toISOString()}`);
+        lines.push("END:VCARD");
+        entries.push(lines.join("\r\n"));
+      }
+      return entries.join("\r\n");
+    }
+
+    function downloadBulkVCard(contacts, filename) {
+      const vcf = buildBulkVCard(contacts);
+      const blob = new Blob([vcf], { type: "text/vcard;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = (filename || "contacts").replace(/[^a-zA-Z0-9-_]+/g, "_").toLowerCase() + ".vcf";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
     }
 
     /* ============= Sharing ============= */
@@ -1417,7 +1690,7 @@
       // Footer
       const foot = el("div", { class: "landing-foot" });
       foot.innerHTML = `
-        <a href="/login">log in</a> &nbsp;·&nbsp; <a href="/awwal">live demo</a> &nbsp;·&nbsp; <a href="/signup">sign up</a>
+        <a href="/login">log in</a> &nbsp;·&nbsp; <a href="/awwal">live demo</a> &nbsp;·&nbsp; <a href="/signup">sign up</a> &nbsp;·&nbsp; <a href="/collector">contact collector</a>
         <div class="tiny muted-2" style="margin-top: 8px;">© ${new Date().getFullYear()} Kaytact</div>
       `;
       main.appendChild(foot);
@@ -2465,18 +2738,516 @@
       updateTopbarState();
     }
 
+    /* ============================================================
+     *  CONTACT COLLECTOR UI
+     * ============================================================ */
+
+    /* ============= Public submission page at /c/:slug ============= */
+    async function renderPublicSubmission(slug) {
+      const app = $("#app");
+      app.innerHTML = `<div class="page-loading"><div class="stack center gap-3"><div class="spinner lg"></div></div></div>`;
+
+      let tenant;
+      try {
+        tenant = await Backend.getTenantBySlug(slug);
+      } catch (e) {
+        app.innerHTML = "";
+        const page = el("div", { class: "page" });
+        page.appendChild(renderTopbar());
+        const main = el("main", { class: "center-col", style: { padding: "60px 0" } });
+        main.innerHTML = `<div class="card"><div class="empty"><div class="ico">${ICONS.x}</div><h3>Couldn't load this page</h3><p>${escapeHtml(e.message || "Unknown error")}</p><a class="btn btn-primary" href="/" style="margin-top: 16px;">Go home</a></div></div>`;
+        page.appendChild(main);
+        app.appendChild(page);
+        return;
+      }
+
+      if (!tenant) {
+        app.innerHTML = "";
+        const page = el("div", { class: "page" });
+        page.appendChild(renderTopbar());
+        const main = el("main", { class: "center-col", style: { padding: "60px 0" } });
+        main.innerHTML = `
+          <div class="card fade-in">
+            <div class="eyebrow">// not found</div>
+            <h1 style="margin-top: 12px;">Collection page not found</h1>
+            <p class="muted small" style="margin-top: 8px;">The link <span class="mono primary-text">/c/${escapeHtml(slug)}</span> doesn't exist. Check the link and try again.</p>
+            <a class="btn btn-primary" href="/" style="margin-top: 20px;">Go to Kaytact</a>
+          </div>
+        `;
+        page.appendChild(main);
+        app.appendChild(page);
+        updateTopbarState();
+        return;
+      }
+
+      // SEO
+      document.title = `${tenant.businessName} — Contact Collector`;
+      setMeta("description", `Submit your contact to ${tenant.businessName} on Kaytact.`);
+
+      app.innerHTML = "";
+      const page = el("div", { class: "page" });
+      page.appendChild(renderTopbar());
+
+      const main = el("main", { class: "center-col", style: { padding: "40px 0 60px" } });
+
+      // Show success state if form was submitted
+      let submitted = false;
+      function renderForm() {
+        main.innerHTML = "";
+        const head = el("div", { class: "collector-head fade-in" });
+        head.innerHTML = `
+          <div class="eyebrow">// contact collector</div>
+          <h1>${escapeHtml(tenant.businessName)}</h1>
+          <p class="sub">Drop your details. You'll be saved in the book.</p>
+        `;
+        main.appendChild(head);
+
+        const card = el("div", { class: "card fade-in" });
+        const form = el("form", { class: "stack gap-4" });
+
+        form.innerHTML = `
+          <div class="edit-row two">
+            <div class="field">
+              <label>First name *</label>
+              <input id="c-firstname" class="input" required placeholder="e.g. Alex" autocomplete="given-name" />
+            </div>
+            <div class="field">
+              <label>Last name <span class="muted-2 tiny">(optional)</span></label>
+              <input id="c-lastname" class="input" placeholder="e.g. Mercer" autocomplete="family-name" />
+            </div>
+          </div>
+          <div class="field">
+            <label>Phone number *</label>
+            <div class="country-select">
+              <input id="c-cc" class="input cc-input" value="+234" placeholder="+234" />
+              <input id="c-phone" class="input phone-input" required type="tel" placeholder="801 234 5678" autocomplete="tel-national" />
+            </div>
+            <div class="hint" id="c-phone-hint">Saved as: <span class="mono">+234...</span></div>
+          </div>
+          <button type="submit" class="btn btn-primary btn-block btn-lg" id="c-submit">Submit my contact</button>
+        `;
+        card.appendChild(form);
+        main.appendChild(card);
+
+        // Live phone preview
+        const ccInput = $("#c-cc", form);
+        const phoneInput = $("#c-phone", form);
+        const phoneHint = $("#c-phone-hint", form);
+        const updatePreview = () => {
+          const cc = (ccInput.value || "").replace(/[^\d+]/g, "");
+          const ph = (phoneInput.value || "").replace(/[^\d]/g, "");
+          const full = cc + ph;
+          phoneHint.innerHTML = `Saved as: <span class="mono">${escapeHtml(full || cc + "...")}</span>`;
+        };
+        ccInput.addEventListener("input", updatePreview);
+        phoneInput.addEventListener("input", updatePreview);
+
+        form.addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const firstName = $("#c-firstname", form).value.trim();
+          const lastName = $("#c-lastname", form).value.trim();
+          const countryCode = $("#c-cc", form).value.trim();
+          const phone = $("#c-phone", form).value.trim();
+          if (!firstName) { toast("First name is required.", { type: "error" }); return; }
+          if (!phone) { toast("Phone number is required.", { type: "error" }); return; }
+
+          const btn = $("#c-submit", form);
+          const orig = btn.innerHTML;
+          btn.disabled = true;
+          btn.innerHTML = `<span class="spinner"></span> Submitting…`;
+          try {
+            await Backend.submitContact(slug, { firstName, lastName, countryCode, phone });
+            renderSuccess({ firstName, lastName, countryCode, phone });
+          } catch (err) {
+            toast(err.message || "Couldn't submit. Try again.", { type: "error" });
+            btn.disabled = false;
+            btn.innerHTML = orig;
+          }
+        });
+      }
+
+      function renderSuccess(contact) {
+        main.innerHTML = "";
+        const card = el("div", { class: "card fade-in" });
+        const fullPhone = (contact.countryCode || "").replace(/[^\d+]/g, "") + (contact.phone || "").replace(/[^\d]/g, "");
+        card.innerHTML = `
+          <div class="success-state">
+            <div class="check-circle">${ICONS.check}</div>
+            <h3>You're in the book.</h3>
+            <p>${escapeHtml(tenant.businessName)} has your contact: <span class="mono primary-text">${escapeHtml(fullPhone)}</span></p>
+            <button class="btn btn-ghost" id="c-add-another" style="margin-top: 20px;">Submit another</button>
+          </div>
+        `;
+        main.appendChild(card);
+        $("#c-add-another", card).onclick = () => renderForm();
+      }
+
+      renderForm();
+      page.appendChild(main);
+      app.appendChild(page);
+      updateTopbarState();
+    }
+
+    /* ============= Collector signup ============= */
+    async function renderCollectorSignup() {
+      const app = $("#app");
+      app.innerHTML = "";
+
+      const page = el("div", { class: "page" });
+      page.appendChild(renderTopbar());
+      const main = el("main", { class: "center-col", style: { padding: "40px 0 60px" } });
+
+      const head = el("div", { class: "collector-head fade-in" });
+      head.innerHTML = `
+        <div class="eyebrow">// contact collector</div>
+        <h1 style="margin-top: 8px;">Create your collector</h1>
+        <p class="sub">Get a branded page where group members submit their contacts. Download them all as a .vcf.</p>
+      `;
+      main.appendChild(head);
+
+      const card = el("div", { class: "card fade-in" });
+      const form = el("form", { class: "stack gap-4" });
+
+      form.innerHTML = `
+        <div class="field">
+          <label>Email</label>
+          <input id="cs-email" type="email" required class="input" placeholder="you@email.com" autocomplete="email" />
+        </div>
+        <div class="edit-row two">
+          <div class="field">
+            <label>Password</label>
+            <input id="cs-password" type="password" required minlength="6" class="input" placeholder="At least 6 chars" autocomplete="new-password" />
+          </div>
+          <div class="field">
+            <label>Confirm</label>
+            <input id="cs-confirm" type="password" required minlength="6" class="input" placeholder="Repeat password" autocomplete="new-password" />
+          </div>
+        </div>
+        <div class="field">
+          <label>Business / group name</label>
+          <input id="cs-business" required class="input" placeholder="e.g. Awwal's WhatsApp Group" />
+        </div>
+        <div class="field">
+          <label>Your collector slug</label>
+          <div class="input-prefix">
+            <span class="prefix">${siteUrl().replace(/^https?:\/\//, "")}/c/</span>
+            <input id="cs-slug" placeholder="my-group" autocomplete="off" spellcheck="false" />
+          </div>
+          <div class="hint" id="cs-slug-hint">2–30 chars, lowercase letters, numbers, hyphens.</div>
+        </div>
+        <label class="row gap-2 small muted" style="cursor: pointer; align-items: flex-start;">
+          <input type="checkbox" id="cs-terms" required style="margin-top:3px; accent-color: var(--primary);" />
+          <span>I agree to Kaytact's Terms and Privacy Policy.</span>
+        </label>
+        <button type="submit" class="btn btn-primary btn-block btn-lg" id="cs-submit">Create collector</button>
+        <div class="auth-foot">
+          Already have a collector? <a href="/collector/login">Log in</a>
+        </div>
+      `;
+      card.appendChild(form);
+      main.appendChild(card);
+
+      page.appendChild(main);
+      app.appendChild(page);
+
+      // Slug live validation
+      const slugInput = $("#cs-slug", form);
+      const slugHint = $("#cs-slug-hint", form);
+      const checkSlug = debounce(async () => {
+        const v = slugInput.value.trim();
+        if (!v) { slugHint.textContent = "Slug is required."; slugHint.className = "hint err"; return; }
+        const r = validateSlug(v);
+        if (!r.ok) { slugHint.textContent = r.msg; slugHint.className = "hint err"; return; }
+        // Only check availability if user is authed (slug check needs no auth in our impl)
+        slugHint.textContent = "Checking…"; slugHint.className = "hint";
+        const taken = await Backend.isSlugTaken(v);
+        if (taken) { slugHint.textContent = "Already taken — try another."; slugHint.className = "hint err"; }
+        else { slugHint.textContent = "Available ✓"; slugHint.className = "hint ok"; }
+      }, 350);
+      slugInput.addEventListener("input", checkSlug);
+
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const email = $("#cs-email", form).value.trim();
+        const password = $("#cs-password", form).value;
+        const confirm = $("#cs-confirm", form).value;
+        const businessName = $("#cs-business", form).value.trim();
+        const slug = $("#cs-slug", form).value.trim();
+        if (password !== confirm) { toast("Passwords do not match.", { type: "error" }); return; }
+        if (!businessName) { toast("Business name is required.", { type: "error" }); return; }
+        const r = validateSlug(slug);
+        if (!r.ok) { toast(r.msg, { type: "error" }); return; }
+        if (!$("#cs-terms", form).checked) { toast("Please accept the terms.", { type: "error" }); return; }
+
+        const btn = $("#cs-submit", form);
+        const orig = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = `<span class="spinner"></span> Creating…`;
+        try {
+          // 1. Sign up
+          await Backend.signUp(email, password);
+          // 2. Create tenant
+          await Backend.createTenant({ businessName, slug });
+          toast("Collector created! Your page is live.", { type: "success", title: "All set" });
+          navigate("/collector");
+        } catch (err) {
+          toast(err.message || "Couldn't create collector.", { type: "error" });
+          btn.disabled = false;
+          btn.innerHTML = orig;
+        }
+      });
+
+      updateTopbarState();
+    }
+
+    /* ============= Collector login ============= */
+    async function renderCollectorLogin() {
+      const app = $("#app");
+      app.innerHTML = "";
+
+      const page = el("div", { class: "page" });
+      page.appendChild(renderTopbar());
+      const main = el("main", { class: "center-col", style: { padding: "40px 0 60px" } });
+
+      const head = el("div", { class: "collector-head fade-in" });
+      head.innerHTML = `
+        <div class="eyebrow">// contact collector</div>
+        <h1 style="margin-top: 8px;">Log in to your collector</h1>
+      `;
+      main.appendChild(head);
+
+      const card = el("div", { class: "card fade-in" });
+      const form = el("form", { class: "stack gap-4" });
+      form.innerHTML = `
+        <div class="field">
+          <label>Email</label>
+          <input id="cl-email" type="email" required class="input" placeholder="you@email.com" autocomplete="email" />
+        </div>
+        <div class="field">
+          <label>Password</label>
+          <input id="cl-password" type="password" required class="input" placeholder="Your password" autocomplete="current-password" />
+        </div>
+        <button type="submit" class="btn btn-primary btn-block btn-lg" id="cl-submit">Log in</button>
+        <div class="auth-foot">
+          No collector yet? <a href="/collector/signup">Create one</a>
+        </div>
+      `;
+      card.appendChild(form);
+      main.appendChild(card);
+      page.appendChild(main);
+      app.appendChild(page);
+
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const email = $("#cl-email", form).value.trim();
+        const password = $("#cl-password", form).value;
+        const btn = $("#cl-submit", form);
+        const orig = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = `<span class="spinner"></span> Logging in…`;
+        try {
+          await Backend.signIn(email, password);
+          toast("Welcome back.", { type: "success" });
+          navigate("/collector");
+        } catch (err) {
+          toast(err.message || "Login failed.", { type: "error" });
+          btn.disabled = false;
+          btn.innerHTML = orig;
+        }
+      });
+
+      updateTopbarState();
+    }
+
+    /* ============= Collector dashboard ============= */
+    async function renderCollectorDashboard() {
+      const app = $("#app");
+      app.innerHTML = `<div class="page-loading"><div class="stack center gap-3"><div class="spinner lg"></div></div></div>`;
+      const user = await requireAuth("/collector/login");
+      if (!user) return;
+
+      const tenant = await Backend.getMyTenant();
+      if (!tenant) {
+        // No tenant yet → prompt to create one
+        app.innerHTML = "";
+        const page = el("div", { class: "page" });
+        page.appendChild(renderTopbar());
+        const main = el("main", { class: "center-col", style: { padding: "40px 0 60px" } });
+        main.innerHTML = `
+          <div class="card fade-in">
+            <div class="empty">
+              <div class="ico">${ICONS.user}</div>
+              <h3>No collector yet</h3>
+              <p>Create your branded contact collection page and start gathering submissions.</p>
+              <a class="btn btn-primary" href="/collector/signup" style="margin-top: 16px;">Create your collector ${ICONS.arrowRight}</a>
+            </div>
+          </div>
+        `;
+        page.appendChild(main);
+        app.appendChild(page);
+        updateTopbarState();
+        return;
+      }
+
+      const contacts = await Backend.getMyContacts();
+      const publicUrl = `${siteUrl()}/c/${encodeURIComponent(tenant.slug)}`;
+
+      app.innerHTML = "";
+      const page = el("div", { class: "page" });
+      page.appendChild(renderTopbar());
+      const main = el("main", { class: "dash-page wide-col" });
+
+      const head = el("div", { class: "dash-head" });
+      head.innerHTML = `
+        <div>
+          <div class="eyebrow">// contact collector</div>
+          <h1 style="margin-top: 6px;">${escapeHtml(tenant.businessName)}</h1>
+          <div class="sub">${contacts.length} contact${contacts.length === 1 ? "" : "s"} collected</div>
+        </div>
+        <div class="actions">
+          <button class="btn btn-primary btn-sm" id="cd-download" ${contacts.length === 0 ? "disabled" : ""}>${ICONS.download} Download .vcf</button>
+          <button class="btn btn-ghost btn-sm" id="cd-logout">${ICONS.logout} Sign out</button>
+        </div>
+      `;
+      main.appendChild(head);
+
+      // Public link card
+      const linkCard = el("div", { class: "card fade-in" });
+      linkCard.innerHTML = `
+        <div class="eyebrow-sm" style="margin-bottom: 10px;">// your public collection link</div>
+        <div class="collector-link-box">
+          <span>${escapeHtml(publicUrl)}</span>
+          <button class="copy-btn" id="cd-copy-link">${ICONS.copy} copy</button>
+        </div>
+        <div class="row gap-2" style="margin-top: 10px; flex-wrap: wrap;">
+          <button class="btn btn-ghost btn-sm" id="cd-share">${ICONS.share} Share</button>
+          <a class="btn btn-ghost btn-sm" href="/c/${escapeHtml(tenant.slug)}" data-internal>${ICONS.eye} Open page</a>
+        </div>
+      `;
+      main.appendChild(linkCard);
+
+      // Contacts list
+      const contactsCard = el("div", { class: "card fade-in" });
+      if (contacts.length === 0) {
+        contactsCard.innerHTML = `
+          <div class="eyebrow-sm" style="margin-bottom: 12px;">// contacts</div>
+          <div class="empty">
+            <div class="ico">${ICONS.user}</div>
+            <h3>No contacts yet</h3>
+            <p>Share your collection link with your group. Submissions will appear here.</p>
+          </div>
+        `;
+      } else {
+        const list = el("div", { class: "contact-list" });
+        contacts.forEach((c) => {
+          const item = el("div", { class: "contact-item" });
+          const initials = ((c.firstName || "?").charAt(0) + (c.lastName || "").charAt(0)).toUpperCase();
+          const name = ((c.firstName || "") + " " + (c.lastName || "")).trim();
+          const date = c.createdAt ? new Date(c.createdAt).toLocaleDateString() : "";
+          item.innerHTML = `
+            <div class="avatar-sm">${escapeHtml(initials)}</div>
+            <div class="info">
+              <div class="name">${escapeHtml(name || "Unknown")}</div>
+              <div class="phone">${escapeHtml(c.fullPhone || (c.countryCode || "") + (c.phone || ""))} ${date ? `· ${escapeHtml(date)}` : ""}</div>
+            </div>
+            <button class="del" data-id="${escapeHtml(c.id)}" title="Delete">${ICONS.trash}</button>
+          `;
+          list.appendChild(item);
+        });
+        contactsCard.innerHTML = `<div class="eyebrow-sm" style="margin-bottom: 12px;">// ${contacts.length} contact${contacts.length === 1 ? "" : "s"}</div>`;
+        contactsCard.appendChild(list);
+      }
+      main.appendChild(contactsCard);
+
+      page.appendChild(main);
+      app.appendChild(page);
+
+      // Wire download
+      const dlBtn = $("#cd-download", main);
+      if (dlBtn && contacts.length > 0) {
+        dlBtn.onclick = () => {
+          downloadBulkVCard(contacts, `${tenant.slug}-contacts`);
+          toast(`Downloaded ${contacts.length} contacts as .vcf`, { type: "success", title: "File ready" });
+        };
+      }
+
+      // Wire copy
+      const copyBtn = $("#cd-copy-link", main);
+      if (copyBtn) {
+        copyBtn.onclick = async () => {
+          const ok = await copyToClipboard(publicUrl);
+          toast(ok ? "Link copied." : "Couldn't copy.", { type: ok ? "success" : "error" });
+        };
+      }
+
+      // Wire share
+      const shareBtn = $("#cd-share", main);
+      if (shareBtn) {
+        shareBtn.onclick = async () => {
+          if (navigator.share) {
+            try {
+              await navigator.share({
+                title: `${tenant.businessName} — Contact Collector`,
+                text: `Submit your contact to ${tenant.businessName}`,
+                url: publicUrl,
+              });
+            } catch {}
+          } else {
+            const ok = await copyToClipboard(publicUrl);
+            toast(ok ? "Link copied — share anywhere." : "Share failed.", { type: ok ? "success" : "error" });
+          }
+        };
+      }
+
+      // Wire logout
+      $("#cd-logout", main).onclick = async () => {
+        await Backend.signOut();
+        toast("Signed out.", { type: "info" });
+        navigate("/collector/login");
+      };
+
+      // Wire delete buttons
+      $$(".del", main).forEach((btn) => {
+        btn.onclick = async () => {
+          const id = btn.dataset.id;
+          if (!confirm("Delete this contact?")) return;
+          try {
+            await Backend.deleteContact(id);
+            toast("Contact deleted.", { type: "success" });
+            renderCollectorDashboard();
+          } catch (e) {
+            toast(e.message, { type: "error" });
+          }
+        };
+      });
+
+      // Wire internal link
+      $$('a[data-internal]', main).forEach((a) => {
+        a.addEventListener("click", (e) => { e.preventDefault(); navigate(a.getAttribute("href")); });
+      });
+
+      updateTopbarState();
+    }
+
     /* ============= Boot ============= */
     // Probe Firebase connectivity first. If unreachable, fall back to demo mode.
+    // Add ?demo to the URL to force demo mode (useful for testing/preview).
     (async () => {
-      if (FIREBASE_CONFIG_PRESENT) {
+      const forceDemo = new URLSearchParams(window.location.search).has("demo");
+      if (FIREBASE_CONFIG_PRESENT && !forceDemo) {
         const ok = await probeFirebase();
         if (!ok) {
           FIREBASE_ENABLED = false;
           fbAuth = null;
           fbDb = null;
-          // Seed demo data so the app is explorable
           DEMO.seed();
         }
+      } else if (forceDemo) {
+        console.warn("[kaytact] Demo mode forced via ?demo query param.");
+        FIREBASE_ENABLED = false;
+        fbAuth = null;
+        fbDb = null;
+        DEMO.seed();
       }
       // Wire auth listener AFTER the probe so demo mode is correctly detected
       // when Firebase is unreachable.

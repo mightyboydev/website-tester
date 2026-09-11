@@ -2,6 +2,8 @@
 
 A premium, mobile-first digital contact / vCard platform built as a **single `index.html` file**. Firebase is wired in. Deploy to Vercel and it's a real working product.
 
+Includes a **multi-tenant Contact Collector** for WhatsApp group admins — each admin gets a branded page where members submit contacts, downloadable as a bulk .vcf.
+
 ---
 
 ## What's in this folder
@@ -9,7 +11,7 @@ A premium, mobile-first digital contact / vCard platform built as a **single `in
 ```
 kaytact/
 ├── index.html          ← The whole app (HTML + CSS + JS in one file)
-├── vercel.json         ← SPA rewrites so /awwal loads the profile
+├── vercel.json         ← SPA rewrites so /awwal and /c/groupA load correctly
 ├── manifest.json       ← PWA manifest (installable)
 ├── sw.js               ← Service worker (offline + caching)
 ├── qr-lib.js           ← Vendored QR code generator
@@ -25,29 +27,30 @@ No `package.json`, no Node, no React. Push to GitHub and import into Vercel.
 
 ---
 
-## ⚡ To make it work, you need to do these 3 things in Firebase
+## ⚡ To make it work, do these 3 things in Firebase
 
 Your Firebase config is already baked into `index.html`. But Firebase starts locked down. You must:
 
 ### 1. Enable Email/Password auth
 - Firebase Console → **Build → Authentication → Sign-in method**
 - Click **Email/Password** → Enable → Save
-- (Optional) Enable **Google** sign-in too
 
 ### 2. Create the Firestore database
 - Firebase Console → **Build → Firestore Database → Create database**
-- Pick **production mode** (locked down by default — we'll add rules next)
+- Pick **production mode**
 - Pick a region close to your users
 
 ### 3. Paste these Firestore rules
 - Firebase Console → **Firestore Database → Rules tab**
-- Replace everything with:
+- Replace everything with the rules below
+- Click **Publish**
 
 ```
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // ===== KAYTACT PERSONAL PROFILES =====
     match /profiles/{uid} {
       allow read: if resource.data.disabled == false || request.auth.uid == uid;
       allow create: if request.auth != null && request.auth.uid == uid
@@ -62,13 +65,32 @@ service cloud.firestore {
       allow create: if request.auth != null
                     && request.resource.data.uid == request.auth.uid;
       allow update, delete: if request.auth != null
-                            && request.resource.data.uid == request.auth.uid;
+                            && resource.data.uid == request.auth.uid;
     }
 
     match /stats/{username} {
       allow read: if true;
       allow update: if true;
       allow create: if request.auth != null;
+    }
+
+    // ===== CONTACT COLLECTOR (multi-tenant) =====
+    match /slugs/{slug} {
+      allow read: if true;
+      allow create: if request.auth != null
+                    && request.resource.data.adminId == request.auth.uid;
+      allow update, delete: if request.auth != null
+                            && resource.data.adminId == request.auth.uid;
+    }
+
+    match /tenants/{adminId}/profile {
+      allow read, write: if request.auth != null && request.auth.uid == adminId;
+    }
+
+    match /tenants/{adminId}/contacts/{contactId} {
+      allow read: if request.auth != null && request.auth.uid == adminId;
+      allow create: if true;
+      allow update, delete: if request.auth != null && request.auth.uid == adminId;
     }
 
     match /{document=**} {
@@ -78,11 +100,9 @@ service cloud.firestore {
 }
 ```
 
-Click **Publish**.
-
-### 4. Add your deployment domain to authorized domains
+### 4. Add your deployment domain
 - Firebase Console → **Authentication → Settings → Authorized domains**
-- Add `your-project.vercel.app` (after first deploy, you'll know the URL)
+- Add `your-project.vercel.app` (after first deploy)
 - Add `kaytact.com` (when you wire the custom domain)
 
 ### 5. (Optional) Set your admin email
@@ -95,6 +115,22 @@ Open `index.html`, find this line near the top of `<body>`:
 ```
 
 Replace `you@example.com` with your real admin email. Sign up with that email → you get access to `/admin`.
+
+---
+
+## How the Firestore rules enforce tenant isolation (plain English)
+
+**Core idea:** every tenant's data lives under `tenants/{adminId}/...`, and every rule checks `request.auth.uid == adminId`. Since Admin A's Firebase Auth UID ≠ Admin B's UID, the rules mathematically prevent cross-tenant access.
+
+1. **`slugs/{slug}` — public read, owner write.** Anyone can read (the public page at `/c/groupA` resolves slug → adminId + business name). Only the admin whose UID matches `adminId` can create/modify. A visitor can find adminId from slug, but can't read that admin's contacts (protected by rule #3).
+
+2. **`tenants/{adminId}/profile` — admin-only.** `read, write: if request.auth.uid == adminId`. Only the admin whose UID equals the `adminId` in the path can read or write. **Admin A cannot read Admin B's profile** — Firestore rejects with "permission-denied".
+
+3. **`tenants/{adminId}/contacts/{contactId}` — public create, admin read.** `create: if true` lets any visitor submit (group members aren't logged in). `read: if request.auth.uid == adminId` means only the owning admin can list/read. **Admin A cannot read Admin B's contacts** because Admin A's UID ≠ Admin B's UID.
+
+4. **Default deny.** Anything not explicitly allowed is blocked.
+
+**Isolation is enforced by Firestore, not by the client.** Even if someone opens the browser console and tries `db.collection("tenants/otherAdminId/contacts").get()`, Firestore returns "permission-denied" before any data leaves the server.
 
 ---
 
@@ -117,125 +153,91 @@ cd kaytact
 vercel --prod
 ```
 
-### Custom domain (kaytact.com)
-
-In Vercel → Project → Settings → Domains → add `kaytact.com` and `www.kaytact.com`. Follow Vercel's DNS instructions.
-
 ---
 
-## What's real vs. what's a fallback
-
-| Feature | Status |
-|---|---|
-| Firebase config | ✅ Real — baked into `index.html` |
-| Email/password auth | ✅ Real — uses Firebase Auth (after step 1) |
-| Profile storage | ✅ Real — uses Firestore (after steps 2 & 3) |
-| Stats tracking | ✅ Real — uses Firestore `FieldValue.increment` |
-| vCard generation | ✅ Real — generated client-side, downloads as `.vcf` |
-| QR codes | ✅ Real — generated client-side via vendored `qrcode-generator` |
-| Share buttons | ✅ Real — Web Share API + WhatsApp/Facebook/X deep links |
-| Admin panel | ✅ Real — gated by `ADMIN_EMAILS` config |
-
-### Why the sandbox preview might look "empty" or fail to load profiles
-
-This sandbox blocks outbound network to `firestore.googleapis.com`. So when you preview here:
-- Firebase Auth won't work (you can't actually log in)
-- Firestore reads/writes will fail (profiles won't load)
-
-To keep the preview explorable, the app silently falls back to `localStorage` when Firebase is unreachable. **This fallback never fires on Vercel** (where outbound network is unrestricted) — the real Firebase database handles everything.
-
-**Test on Vercel for the real experience.**
-
----
-
-## Design system — "hacker-lime"
-
-- **Background**: `#070E16` (deep navy)
-- **Foreground**: `#EDF2F8` (off-white)
-- **Accent**: `#68E371` (lime green) — primary buttons, eyebrows, accent text
-- **WhatsApp**: `#25D366` — only on the WhatsApp button (brand exception)
-- **Border**: `#1B2530` — always 1px
-- **Card**: `#111921` at 60% opacity with `backdrop-blur(8px)`
-- **Fonts**: Space Grotesk (UI) + JetBrains Mono (eyebrows, meta, system text)
-- **Eyebrows**: `// code-comment` style — mono, uppercase, wide tracking, lime
-
----
-
-## How it works (architecture)
-
-Everything is in **one file**: `index.html`. It uses:
-
-- **Vanilla JS** with a tiny path-based SPA router
-- **Firebase Web SDK (modular, ESM via CDN)** for auth + Firestore — called directly from the browser, no proxy APIs
-- **`qrcode-generator` library** (vendored locally as `qr-lib.js`) for QR generation
-- **Web Share API** for native share menus on iOS / Android
-- **vCard 3.0** generated in the browser and downloaded as a real `.vcf` file
-- **`vercel.json` rewrites** so `/awwal` etc. resolve to `index.html`
-- **PWA** (manifest + service worker) — installable, offline-capable
-
-### Routing
+## Routing
 
 | Path | Renders |
 |------|---------|
 | `/` | Landing page |
-| `/login`, `/signup`, `/forgot-password` | Auth pages |
-| `/dashboard` | Owner overview (auth required) |
-| `/dashboard/edit` | Edit profile form |
-| `/dashboard/analytics` | Stats + charts |
-| `/dashboard/qr` | Downloadable QR code |
-| `/admin` | Admin panel (admin email gate) |
-| `/:username` | Public profile card (e.g. `/awwal`) |
+| `/login`, `/signup`, `/forgot-password` | Kaytact personal auth |
+| `/dashboard` | Personal contact card dashboard |
+| `/dashboard/edit` | Edit personal profile |
+| `/dashboard/analytics` | Personal profile analytics |
+| `/dashboard/qr` | Personal QR code |
+| `/admin` | Platform admin panel |
+| `/:username` | Public personal profile (e.g. `/awwal`) |
+| `/collector` | Contact Collector admin dashboard |
+| `/collector/signup` | Create a new collector tenant |
+| `/collector/login` | Log in to collector dashboard |
+| `/c/:slug` | Public submission page (no login required) |
+
+---
+
+## Contact Collector — data structure
+
+```
+slugs/{slug} = {
+  adminId: "firebase-auth-uid",
+  businessName: "Awwal's WhatsApp Group",
+  slug: "groupA",
+  createdAt: timestamp
+}
+
+tenants/{adminId}/profile = {
+  businessName: "Awwal's WhatsApp Group",
+  slug: "groupA",
+  adminEmail: "admin@example.com",
+  createdAt: timestamp,
+  updatedAt: timestamp
+}
+
+tenants/{adminId}/contacts/{contactId} = {
+  firstName: "John",
+  lastName: "Doe",
+  countryCode: "+234",
+  phone: "8012345678",
+  fullPhone: "+2348012345678",
+  createdAt: timestamp
+}
+```
+
+The `slugs/{slug}` document stores `businessName` publicly so the submission page can show it without needing to read the protected `tenants/{adminId}/profile` document.
 
 ---
 
 ## Feature checklist
 
-- [x] Hacker-lime aesthetic — navy bg, lime accent, Space Grotesk + JetBrains Mono, glass cards
-- [x] Mobile-first, no horizontal scroll, large tap targets, iOS safe areas
-- [x] Firebase Auth: email/password + Google sign-in + password reset + persistent session
-- [x] Firestore-backed profiles + stats with secure rules
-- [x] Username system with validation + duplicate check + reserved words
-- [x] Public profile card: photo, name, title, company, bio, location
-- [x] SAVE CONTACT button → generates real vCard `.vcf` (multi-phone, socials, photo URL, etc.)
-- [x] WhatsApp / Call / Email buttons with proper deep-links
-- [x] Social links (Facebook, Instagram, X, LinkedIn, Telegram, TikTok)
-- [x] Custom links
-- [x] QR code generation (downloadable PNG) for each profile
-- [x] Share via Web Share API, WhatsApp, X, copy link
-- [x] Analytics: views, contact saves, WhatsApp / call / email clicks (auto-tracked)
-- [x] Dashboard with profile summary, stats cards, link copy, share button
-- [x] Edit profile: photo upload (resized client-side), all fields, live username validation
-- [x] Admin panel: search users, view stats, disable/enable, rename, platform totals
-- [x] PWA: installable, offline fallback, app icons
-- [x] SEO: per-profile title, description, OG, Twitter card metadata
-- [x] Vercel-ready: `vercel.json` rewrites for SPA routes
-- [x] Loading / empty / error states, toast notifications, skeletons
-- [x] Form validation everywhere
-- [x] Auth-protected routes (`/dashboard/*`, `/admin`)
-- [x] Public profiles viewable without login
+### Personal contact cards (Kaytact core)
+- [x] Firebase Auth: email/password + Google + password reset + persistent session
+- [x] Firestore-backed profiles + stats
+- [x] Username system with validation + duplicate check
+- [x] Public profile card with SAVE CONTACT → real .vcf download
+- [x] WhatsApp / Call / Email buttons, social links, custom links
+- [x] QR code generation + download
+- [x] Analytics: views, saves, clicks
+- [x] Admin panel with user management
 
----
-
-## Local development
-
-Because it's a single HTML file with module scripts, serve over HTTP (not `file://`) so ES modules work:
-
-```bash
-python3 -m http.server 8080
-# or
-npx serve .
-```
-
-Open `http://localhost:8080`. Firebase will be reachable from your local machine (unlike the sandbox preview).
+### Contact Collector (multi-tenant)
+- [x] Admin signup with slug picker + business name
+- [x] Public submission page at `/c/:slug` (no login required)
+- [x] Form: First name*, Last name (optional), Country code (default +234), Phone*
+- [x] Success message after submitting
+- [x] Admin dashboard: contact list, count, .vcf download, public link, share
+- [x] Delete individual contacts
+- [x] Multi-tenant isolation enforced by Firestore rules
+- [x] Bulk .vcf file with multiple vCard entries (imports all at once)
 
 ---
 
 ## Tech notes
 
-- **Why no framework?** Per your spec. Vanilla JS keeps the file small, loads instantly, has zero build step.
-- **Why Firebase from the browser?** Per your spec. Firebase Web SDK is designed for this — config keys are public, security is enforced by Firestore Rules + Auth.
-- **Image uploads** are stored as base64 data URLs in Firestore (resized to ≤512px client-side). For larger images, swap in Firebase Storage.
-- **Stats tracking** uses `FieldValue.increment(1)` so writes are atomic and idempotent.
+- **Single `index.html`** — all CSS/JS inline, no build step, no framework
+- **Firebase Web SDK** via ESM CDN — called directly from browser, no proxy APIs
+- **vCard 3.0** generated client-side — both single-contact and bulk multi-contact
+- **QR codes** via vendored `qrcode-generator` library
+- **PWA** — installable, offline-capable
+- **`vercel.json` rewrites** — all routes serve `index.html` (SPA pattern)
 
 ---
 
