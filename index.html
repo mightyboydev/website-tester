@@ -1,0 +1,2528 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#070E16" />
+  <meta name="color-scheme" content="dark" />
+  <title>Kaytact — Your contact. One tap away.</title>
+  <meta name="description" content="Create your digital contact card and let anyone save your details instantly. One tap. One link. One Kaytact." />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Kaytact" />
+
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Kaytact" />
+  <meta property="og:title" content="Kaytact — Your contact. One tap away." />
+  <meta property="og:description" content="Create your digital contact card and let anyone save your details instantly." />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Kaytact — Your contact. One tap away." />
+  <meta name="twitter:description" content="Create your digital contact card and let anyone save your details instantly." />
+
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" type="image/svg+xml" href="icon.svg" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+
+  <!-- QR code library (vendored locally) -->
+  <script src="qr-lib.js"></script>
+
+  <style>
+    /* ===== Kaytact Design System — hacker-lime ===== */
+    *, *::before, *::after { box-sizing: border-box; }
+    :root {
+      --bg: #070E16;
+      --bg-2: #0B1219;
+      --fg: #EDF2F8;
+      --muted: #8F9AA4;
+      --muted-2: #5A6571;
+      --card: #111921;
+      --border: #1B2530;
+      --input: #1B2530;
+      --primary: #68E371;
+      --primary-hover: #5BC965;
+      --primary-fg: #070E16;
+      --whatsapp: #25D366;
+      --whatsapp-hover: #1ebe5b;
+      --red: #FF6B6B;
+      --radius: 10px;
+      --radius-lg: 16px;
+      --font: 'Space Grotesk', system-ui, -apple-system, sans-serif;
+      --mono: 'JetBrains Mono', ui-monospace, monospace;
+      --max-w: 460px;
+      --max-w-wide: 760px;
+    }
+    html, body { margin: 0; padding: 0; height: 100%; }
+    html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--fg);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+      overflow-x: hidden;
+      min-height: 100vh;
+      min-height: 100dvh;
+      font-size: 15px;
+      font-weight: 400;
+    }
+    img { max-width: 100%; display: block; }
+    a { color: inherit; text-decoration: none; }
+    button { font-family: inherit; cursor: pointer; border: 0; background: none; color: inherit; }
+    input, textarea, select { font-family: inherit; font-size: 15px; color: var(--fg); }
+    input::placeholder, textarea::placeholder { color: var(--muted-2); }
+    :focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: 4px; }
+    ::selection { background: var(--primary); color: var(--primary-fg); }
+
+    /* ===== Layout ===== */
+    .page { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; }
+    .center-col { width: 100%; max-width: var(--max-w); margin: 0 auto; padding: 0 16px; }
+    .wide-col { width: 100%; max-width: var(--max-w-wide); margin: 0 auto; padding: 0 16px; }
+    .min-h-screen { min-height: 100vh; min-height: 100dvh; }
+    .stack { display: flex; flex-direction: column; }
+    .row { display: flex; align-items: center; }
+    .between { justify-content: space-between; }
+    .center { justify-content: center; align-items: center; }
+    .gap-1 { gap: 4px; } .gap-2 { gap: 8px; } .gap-3 { gap: 12px; }
+    .gap-4 { gap: 16px; } .gap-5 { gap: 20px; } .gap-6 { gap: 24px; }
+    .mt-1 { margin-top: 4px; } .mt-2 { margin-top: 8px; } .mt-3 { margin-top: 12px; }
+    .mt-4 { margin-top: 16px; } .mt-5 { margin-top: 20px; } .mt-6 { margin-top: 24px; }
+    .mt-8 { margin-top: 32px; } .mt-10 { margin-top: 40px; } .mt-12 { margin-top: 48px; }
+    .text-center { text-align: center; }
+    .hidden { display: none !important; }
+    .full-w { width: 100%; }
+    .flex-1 { flex: 1; }
+    .flex-wrap { flex-wrap: wrap; }
+
+    /* ===== Typography ===== */
+    h1, h2, h3, h4 { font-family: var(--font); margin: 0; letter-spacing: -0.02em; line-height: 1.15; font-weight: 700; }
+    h1 { font-size: clamp(28px, 6vw, 36px); }
+    h2 { font-size: clamp(22px, 4vw, 28px); }
+    h3 { font-size: 17px; }
+    p { margin: 0; }
+    .muted { color: var(--muted); }
+    .muted-2 { color: var(--muted-2); }
+    .mono { font-family: var(--mono); }
+    .primary-text { color: var(--primary); }
+    .small { font-size: 13px; }
+    .tiny { font-size: 12px; }
+    .micro { font-size: 10px; }
+
+    /* Eyebrow — the // code-comment style label */
+    .eyebrow {
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 400;
+      color: var(--primary);
+      text-transform: uppercase;
+      letter-spacing: 0.3em;
+    }
+    .eyebrow-sm {
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 400;
+      color: var(--primary);
+      text-transform: uppercase;
+      letter-spacing: 0.3em;
+    }
+    .eyebrow-muted {
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 400;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    /* ===== Top bar (minimal) ===== */
+    .topbar { padding: 24px 0; }
+    .topbar .row { justify-content: space-between; }
+    .brand {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-family: var(--font); font-weight: 700; font-size: 16px;
+      letter-spacing: -0.01em;
+    }
+    .brand-mark {
+      width: 26px; height: 26px; border-radius: 7px;
+      background: var(--primary); color: var(--primary-fg);
+      display: grid; place-items: center; font-weight: 700; font-size: 14px;
+      font-family: var(--font);
+    }
+    .topbar-links { display: flex; gap: 6px; align-items: center; }
+    .topbar-links a, .topbar-links button {
+      font-family: var(--mono); font-size: 12px; font-weight: 400;
+      color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em;
+      padding: 6px 10px; border-radius: 6px; transition: color 0.15s, background 0.15s;
+    }
+    .topbar-links a:hover, .topbar-links button:hover { color: var(--primary); }
+
+    /* ===== Buttons ===== */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 8px 16px; border-radius: var(--radius); font-weight: 600; font-size: 15px;
+      font-family: var(--font);
+      transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.1s, opacity 0.15s;
+      cursor: pointer; border: 1px solid transparent; min-height: 44px;
+      -webkit-tap-highlight-color: transparent; user-select: none; white-space: nowrap;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-primary {
+      background: var(--primary); color: var(--primary-fg);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px -1px rgba(0,0,0,0.1);
+    }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-whatsapp {
+      background: var(--whatsapp); color: #000;
+    }
+    .btn-whatsapp:hover { background: var(--whatsapp-hover); }
+    .btn-ghost {
+      background: transparent; color: var(--fg); border-color: var(--border);
+    }
+    .btn-ghost:hover { border-color: var(--muted-2); color: var(--primary); }
+    .btn-sm { padding: 6px 12px; font-size: 13px; min-height: 36px; border-radius: 8px; }
+    .btn-lg { padding: 12px 20px; font-size: 16px; min-height: 48px; }
+    .btn-block { width: 100%; }
+    .btn-icon { padding: 8px; min-height: 40px; min-width: 40px; }
+    .btn svg { width: 18px; height: 18px; flex-shrink: 0; }
+
+    /* ===== Cards (glass) ===== */
+    .card {
+      background: rgba(17,25,33,0.6);
+      backdrop-filter: blur(8px) saturate(140%);
+      -webkit-backdrop-filter: blur(8px) saturate(140%);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+    }
+    .card-soft {
+      background: rgba(17,25,33,0.4);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+    }
+
+    /* ===== Forms ===== */
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    .field label {
+      font-size: 13px; font-weight: 500; color: var(--fg);
+    }
+    .field .hint {
+      font-family: var(--mono); font-size: 12px; color: var(--muted);
+    }
+    .field .hint.ok { color: var(--primary); }
+    .field .hint.err { color: var(--red); }
+    .input, .textarea, .select {
+      width: 100%; padding: 8px 12px; border-radius: var(--radius);
+      background: transparent; border: 1px solid var(--input);
+      transition: border-color 0.15s, box-shadow 0.15s;
+      min-height: 36px; font-family: var(--font); font-size: 14px; color: var(--fg);
+    }
+    .input:focus, .textarea:focus, .select:focus {
+      outline: none; border-color: var(--primary);
+      box-shadow: 0 0 0 1px var(--primary);
+    }
+    .input:disabled { color: var(--muted); cursor: not-allowed; opacity: 0.7; }
+    .textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
+    .input-prefix {
+      display: flex; align-items: stretch; border-radius: var(--radius);
+      border: 1px solid var(--input); overflow: hidden; transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .input-prefix:focus-within { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary); }
+    .input-prefix .prefix {
+      padding: 0 10px; display: grid; place-items: center; color: var(--fg);
+      font-family: var(--mono); font-size: 14px; border-right: 1px solid var(--border);
+      background: rgba(42,52,65,0.4); height: 36px;
+    }
+    .input-prefix input {
+      border: 0; background: transparent; padding: 8px 12px; box-shadow: none; flex: 1; min-width: 0;
+      min-height: 36px; font-size: 14px;
+    }
+    .input-prefix input:focus { box-shadow: none; outline: none; }
+
+    /* ===== Toasts ===== */
+    .toasts {
+      position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+      z-index: 9999; display: flex; flex-direction: column; gap: 8px;
+      width: min(420px, calc(100vw - 32px));
+    }
+    .toast {
+      padding: 12px 14px; border-radius: var(--radius);
+      background: rgba(17,25,33,0.95); border: 1px solid var(--border);
+      backdrop-filter: blur(12px); display: flex; gap: 10px; align-items: flex-start;
+      animation: toast-in 0.25s ease; box-shadow: 0 10px 30px -10px rgba(0,0,0,0.6);
+    }
+    .toast.success { border-left: 3px solid var(--primary); }
+    .toast.error { border-left: 3px solid var(--red); }
+    .toast.info { border-left: 3px solid var(--fg); }
+    .toast .t-ico { width: 18px; height: 18px; flex-shrink: 0; color: var(--primary); }
+    .toast.error .t-ico { color: var(--red); }
+    .toast .t-msg { font-size: 13px; line-height: 1.4; }
+    .toast .t-msg strong { display: block; font-size: 13px; font-weight: 600; }
+    .toast .t-msg span { font-size: 12px; color: var(--muted); }
+    @keyframes toast-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* ===== Loading ===== */
+    .spinner {
+      width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.15);
+      border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite;
+    }
+    .spinner.lg { width: 28px; height: 28px; border-width: 3px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .page-loading { display: grid; place-items: center; min-height: 60vh; }
+    .skeleton {
+      background: linear-gradient(90deg, rgba(17,25,33,0.4) 25%, rgba(17,25,33,0.7) 50%, rgba(17,25,33,0.4) 75%);
+      background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: 6px;
+    }
+    @keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+
+    /* ===== Landing page ===== */
+    .landing { padding: 32px 0 64px; }
+    .landing-head { text-align: center; margin-bottom: 32px; }
+    .landing-head h1 { margin-top: 12px; }
+    .landing-head .sub { margin-top: 12px; color: var(--muted); font-size: 14px; max-width: 320px; margin-left: auto; margin-right: auto; }
+    .landing-form .field { margin-bottom: 16px; }
+    .landing-actions { margin-top: 24px; display: flex; flex-direction: column; gap: 10px; }
+    .landing-or {
+      display: flex; align-items: center; gap: 12px; margin: 20px 0;
+      color: var(--muted-2); font-family: var(--mono); font-size: 11px;
+    }
+    .landing-or::before, .landing-or::after {
+      content: ''; flex: 1; height: 1px; background: var(--border);
+    }
+    .landing-foot {
+      margin-top: 32px; text-align: center;
+    }
+    .landing-foot a {
+      font-family: var(--mono); font-size: 12px; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.1em;
+      transition: color 0.15s;
+    }
+    .landing-foot a:hover { color: var(--primary); }
+
+    /* "Why" / features mini-grid (still minimal) */
+    .mini-features { display: grid; grid-template-columns: 1fr; gap: 8px; margin-top: 16px; }
+    .mini-feature {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 12px 14px; border-radius: var(--radius);
+      background: rgba(17,25,33,0.4); border: 1px solid var(--border);
+      font-size: 13px; color: var(--muted);
+    }
+    .mini-feature .check { color: var(--primary); flex-shrink: 0; }
+    .mini-feature strong { color: var(--fg); font-weight: 500; }
+
+    /* ===== Public profile card ===== */
+    .pc { padding: 24px 0 48px; }
+    .pc-card { max-width: var(--max-w); margin: 0 auto; padding: 0 16px; }
+    .pc-inner {
+      background: rgba(17,25,33,0.6);
+      backdrop-filter: blur(8px) saturate(140%);
+      -webkit-backdrop-filter: blur(8px) saturate(140%);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+    .pc-banner { height: 80px; background: linear-gradient(135deg, rgba(104,227,113,0.25), rgba(37,211,102,0.12) 70%, transparent); }
+    .pc-body { padding: 0 20px 24px; margin-top: -48px; position: relative; text-align: center; }
+    .pc-avatar {
+      width: 88px; height: 88px; border-radius: 50%;
+      background: rgba(17,25,33,0.95); border: 2px solid var(--bg);
+      display: grid; place-items: center; margin: 0 auto;
+      font-family: var(--font); font-weight: 700; font-size: 28px; color: var(--primary);
+      overflow: hidden; box-shadow: 0 4px 12px -2px rgba(0,0,0,0.6);
+    }
+    .pc-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .pc-name { font-family: var(--font); font-size: 22px; font-weight: 700; margin-top: 10px; }
+    .pc-role { color: var(--muted); font-size: 13px; margin-top: 2px; }
+    .pc-company { color: var(--primary); font-size: 12px; margin-top: 4px; font-weight: 500; font-family: var(--mono); letter-spacing: 0.02em; }
+    .pc-bio { color: var(--muted); font-size: 13px; line-height: 1.5; margin-top: 12px; max-width: 320px; margin-left: auto; margin-right: auto; }
+    .pc-location {
+      display: inline-flex; align-items: center; gap: 4px; color: var(--muted-2);
+      font-family: var(--mono); font-size: 11px; margin-top: 10px;
+    }
+    .pc-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
+    .pc-actions-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+    .pc-action {
+      padding: 12px 4px; border-radius: var(--radius);
+      background: transparent; border: 1px solid var(--border);
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+      font-size: 11px; color: var(--muted); transition: all 0.15s; min-height: 64px; justify-content: center;
+    }
+    .pc-action:hover { border-color: var(--primary); color: var(--primary); }
+    .pc-action svg { width: 18px; height: 18px; }
+    .pc-divider { height: 1px; background: var(--border); margin: 20px 0; }
+    .pc-section-title {
+      font-family: var(--mono); font-size: 11px; text-transform: uppercase;
+      letter-spacing: 0.15em; color: var(--muted-2); margin-bottom: 10px; text-align: left;
+    }
+    .pc-socials { display: flex; flex-wrap: wrap; gap: 6px; }
+    .pc-social {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 12px; border-radius: var(--radius);
+      background: transparent; border: 1px solid var(--border);
+      font-size: 12px; color: var(--muted); transition: all 0.15s;
+    }
+    .pc-social:hover { border-color: var(--primary); color: var(--primary); }
+    .pc-social svg { width: 14px; height: 14px; }
+    .pc-link {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 12px; border-radius: var(--radius);
+      background: transparent; border: 1px solid var(--border);
+      transition: all 0.15s; text-align: left;
+    }
+    .pc-link:hover { border-color: var(--primary); }
+    .pc-link .ico { width: 28px; height: 28px; border-radius: 7px; background: rgba(42,52,65,0.4); display: grid; place-items: center; color: var(--primary); flex-shrink: 0; }
+    .pc-link .ico svg { width: 14px; height: 14px; }
+    .pc-link .meta { flex: 1; min-width: 0; }
+    .pc-link .meta .l { font-size: 13px; font-weight: 500; color: var(--fg); }
+    .pc-link .meta .u { font-family: var(--mono); font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .pc-link .arrow { color: var(--muted-2); flex-shrink: 0; }
+    .pc-link .arrow svg { width: 14px; height: 14px; }
+
+    .pc-qr-wrap {
+      margin-top: 20px; padding: 16px; border-radius: var(--radius);
+      background: rgba(17,25,33,0.4); border: 1px solid var(--border);
+      display: flex; flex-direction: column; align-items: center; gap: 8px;
+    }
+    .pc-qr {
+      width: 160px; height: 160px; background: var(--fg); border-radius: var(--radius);
+      padding: 8px; display: grid; place-items: center;
+    }
+    .pc-qr canvas, .pc-qr img, .pc-qr svg { width: 100%; height: 100%; display: block; }
+    .pc-qr-lbl { font-family: var(--mono); font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.15em; }
+
+    .pc-share {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;
+    }
+    .pc-share-btn {
+      padding: 10px 4px; border-radius: var(--radius);
+      background: transparent; border: 1px solid var(--border);
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+      font-size: 10px; color: var(--muted); transition: all 0.15s;
+    }
+    .pc-share-btn:hover { border-color: var(--primary); color: var(--primary); }
+    .pc-share-btn svg { width: 16px; height: 16px; }
+
+    .pc-promo {
+      margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border);
+      font-family: var(--mono); font-size: 11px; color: var(--muted-2);
+      text-transform: uppercase; letter-spacing: 0.1em;
+    }
+    .pc-promo a { color: var(--primary); }
+
+    /* ===== Auth pages ===== */
+    .auth-page { padding: 48px 0 64px; }
+    .auth-head { text-align: center; margin-bottom: 24px; }
+    .auth-head .brand { justify-content: center; margin-bottom: 16px; }
+    .auth-head h1 { font-size: 24px; }
+    .auth-head .sub { color: var(--muted); font-size: 13px; margin-top: 6px; }
+    .auth-foot { text-align: center; margin-top: 20px; font-size: 13px; color: var(--muted); }
+    .auth-foot a { color: var(--primary); font-weight: 500; }
+
+    /* ===== Dashboard ===== */
+    .dash-page { padding: 24px 0 80px; }
+    .dash-head {
+      display: flex; justify-content: space-between; align-items: center;
+      gap: 12px; margin-bottom: 20px; flex-wrap: wrap;
+    }
+    .dash-head h1 { font-size: 22px; }
+    .dash-head .sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
+    .dash-head .sub .mono { color: var(--primary); }
+    .dash-head .actions { display: flex; gap: 6px; flex-wrap: wrap; }
+
+    .dash-grid { display: grid; gap: 16px; grid-template-columns: 1fr; }
+    @media (min-width: 768px) { .dash-grid { grid-template-columns: 200px 1fr; } }
+
+    .dash-side {
+      background: rgba(17,25,33,0.4); backdrop-filter: blur(8px);
+      border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 12px;
+      position: sticky; top: 16px; align-self: start;
+    }
+    .dash-side a {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 12px; border-radius: var(--radius);
+      color: var(--muted); font-size: 13px; font-weight: 500; transition: all 0.15s;
+    }
+    .dash-side a:hover { background: rgba(104,227,113,0.06); color: var(--fg); }
+    .dash-side a.active { background: rgba(104,227,113,0.12); color: var(--primary); }
+    .dash-side a svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+    .dash-main { min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+
+    .profile-summary {
+      display: flex; gap: 14px; align-items: center; flex-wrap: wrap;
+    }
+    .profile-summary .avatar {
+      width: 56px; height: 56px; border-radius: 50%;
+      background: rgba(17,25,33,0.95); border: 1px solid var(--border);
+      display: grid; place-items: center; overflow: hidden;
+      font-weight: 700; color: var(--primary); flex-shrink: 0;
+    }
+    .profile-summary .avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .profile-summary .info { flex: 1; min-width: 160px; }
+    .profile-summary .info .name { font-weight: 600; font-size: 16px; }
+    .profile-summary .info .meta { color: var(--muted); font-size: 12px; margin-top: 2px; }
+    .profile-summary .info .link {
+      font-family: var(--mono); font-size: 12px; color: var(--primary); margin-top: 4px;
+      display: inline-flex; gap: 4px; align-items: center;
+    }
+    .profile-summary .info .link svg { width: 12px; height: 12px; }
+
+    .stats-grid { display: grid; gap: 8px; grid-template-columns: repeat(2, 1fr); }
+    @media (min-width: 540px) { .stats-grid { grid-template-columns: repeat(3, 1fr); } }
+    .stat-card {
+      padding: 14px; border-radius: var(--radius);
+      background: rgba(17,25,33,0.4); border: 1px solid var(--border);
+    }
+    .stat-card .ico {
+      width: 28px; height: 28px; border-radius: 7px;
+      background: rgba(104,227,113,0.1); color: var(--primary);
+      display: grid; place-items: center; margin-bottom: 8px;
+    }
+    .stat-card .ico svg { width: 14px; height: 14px; }
+    .stat-card .num { font-family: var(--font); font-size: 22px; font-weight: 700; line-height: 1; }
+    .stat-card .lbl { font-family: var(--mono); font-size: 10px; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.1em; }
+
+    .copy-pill {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 12px; border-radius: var(--radius);
+      background: rgba(17,25,33,0.4); border: 1px solid var(--border);
+      font-family: var(--mono); font-size: 12px; color: var(--fg);
+      overflow: hidden;
+    }
+    .copy-pill span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+
+    /* Edit profile form */
+    .edit-section { margin-bottom: 16px; }
+    .edit-section:last-child { margin-bottom: 0; }
+    .edit-section h3 {
+      font-family: var(--mono); font-size: 11px; text-transform: uppercase;
+      letter-spacing: 0.15em; color: var(--muted-2); margin-bottom: 12px;
+    }
+    .edit-row { display: grid; gap: 12px; grid-template-columns: 1fr; }
+    @media (min-width: 540px) { .edit-row.two { grid-template-columns: 1fr 1fr; } }
+
+    .photo-upload { display: flex; gap: 12px; align-items: center; }
+    .photo-preview {
+      width: 72px; height: 72px; border-radius: 50%;
+      background: rgba(17,25,33,0.95); border: 1px solid var(--border);
+      display: grid; place-items: center; overflow: hidden;
+      font-weight: 700; font-size: 22px; color: var(--primary); flex-shrink: 0;
+    }
+    .photo-preview img { width: 100%; height: 100%; object-fit: cover; }
+    .photo-upload .actions { display: flex; flex-direction: column; gap: 6px; }
+
+    .phone-row, .custom-row {
+      display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+    }
+    .phone-row .input, .custom-row .input { min-width: 0; }
+    .phone-row .label-input { flex: 0 0 100px; }
+    .phone-row .number-input, .custom-row .url-input { flex: 1; min-width: 140px; }
+    .custom-row .label-input { flex: 0 0 130px; }
+
+    .save-bar {
+      position: sticky; bottom: 12px; z-index: 5;
+      background: rgba(7,14,22,0.95); backdrop-filter: blur(12px);
+      border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 12px; display: flex; gap: 8px; align-items: center; justify-content: flex-end;
+    }
+
+    /* Analytics */
+    .conv-card { padding: 20px; }
+    .conv-card .num-big { font-family: var(--font); font-size: 32px; font-weight: 700; color: var(--primary); line-height: 1; }
+    .conv-card .lbl { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.1em; }
+    .conv-bar { height: 6px; background: rgba(42,52,65,0.4); border-radius: 999px; margin-top: 12px; overflow: hidden; }
+    .conv-bar > div { height: 100%; background: var(--primary); border-radius: 999px; transition: width 0.6s; }
+
+    .breakdown { display: flex; flex-direction: column; gap: 10px; }
+    .breakdown-row .top { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 12px; }
+    .breakdown-row .top .label { color: var(--fg); }
+    .breakdown-row .top .value { font-family: var(--mono); color: var(--muted); }
+    .breakdown-bar { height: 6px; background: rgba(42,52,65,0.4); border-radius: 999px; overflow: hidden; }
+    .breakdown-bar > div { height: 100%; border-radius: 999px; transition: width 0.6s; }
+
+    /* QR page */
+    .qr-display { padding: 32px 20px; text-align: center; }
+    .qr-display .url { font-family: var(--mono); font-size: 13px; color: var(--primary); margin-bottom: 16px; word-break: break-all; }
+    .qr-display .qr-target {
+      display: inline-grid; place-items: center; padding: 16px;
+      background: var(--fg); border-radius: var(--radius-lg);
+      width: 220px; height: 220px; margin: 0 auto;
+    }
+
+    /* Admin */
+    .admin-stats { display: grid; gap: 8px; grid-template-columns: repeat(2, 1fr); margin-bottom: 16px; }
+    @media (min-width: 700px) { .admin-stats { grid-template-columns: repeat(3, 1fr); } }
+    .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius-lg); }
+    table.data { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 600px; }
+    table.data th, table.data td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+    table.data th { background: rgba(17,25,33,0.6); color: var(--muted); font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 400; }
+    table.data tr:last-child td { border-bottom: 0; }
+    table.data tr:hover td { background: rgba(104,227,113,0.04); }
+    .user-avatar { width: 26px; height: 26px; border-radius: 50%; background: rgba(17,25,33,0.95); display: inline-grid; place-items: center; font-weight: 700; font-size: 11px; color: var(--primary); vertical-align: middle; margin-right: 8px; overflow: hidden; }
+    .user-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+    /* Badges */
+    .badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 3px 8px; border-radius: 999px;
+      font-family: var(--mono); font-size: 10px; font-weight: 400;
+      text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    .badge.primary { background: rgba(104,227,113,0.12); color: var(--primary); }
+    .badge.muted { background: rgba(143,154,164,0.12); color: var(--muted); }
+    .badge.red { background: rgba(255,107,107,0.12); color: var(--red); }
+
+    /* Empty state */
+    .empty {
+      text-align: center; padding: 32px 16px;
+    }
+    .empty .ico {
+      width: 48px; height: 48px; margin: 0 auto 12px;
+      border-radius: 12px; background: rgba(17,25,33,0.4);
+      border: 1px solid var(--border); display: grid; place-items: center;
+      color: var(--muted-2);
+    }
+    .empty .ico svg { width: 22px; height: 22px; }
+    .empty h3 { margin-bottom: 6px; font-size: 16px; }
+    .empty p { color: var(--muted); font-size: 13px; max-width: 320px; margin: 0 auto; }
+
+    /* Animations */
+    .fade-in { animation: fade-in 0.3s ease; }
+    @keyframes fade-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* Safe area */
+    body { overscroll-behavior-y: none; }
+    .safe-b { padding-bottom: env(safe-area-inset-bottom); }
+
+    /* Mobile: tighten on very small screens */
+    @media (max-width: 380px) {
+      body { font-size: 14px; }
+      .card { padding: 20px; }
+      .pc-body { padding: 0 16px 20px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+
+  <!-- ====== Optional config (runs before module) ====== -->
+  <script>
+    // Admin emails (comma-separated). Replace with your real admin email(s).
+    window.KAYTACT_ADMIN_EMAILS = window.KAYTACT_ADMIN_EMAILS || "you@example.com";
+    // Optional: override the public site URL (used for QR codes + sharing).
+    // window.KAYTACT_SITE_URL = "https://kaytact.com";
+  </script>
+
+  <!-- ====== Kaytact App (single file) ====== -->
+  <script type="module">
+    /* ============================================================
+     *  KAYTACT — single-file SPA
+     *  - Firebase (modular SDK via CDN) when configured
+     *  - localStorage demo mode fallback
+     *  - Path-based SPA router (works with Vercel rewrites)
+     *  - vCard generated client-side
+     *  - QR codes generated client-side via vendored qrcode-generator
+     * ============================================================ */
+
+    /* ----- Firebase (modular via CDN ESM) ----- */
+    import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import {
+      getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
+      sendPasswordResetEmail, signOut, onAuthStateChanged, sendEmailVerification,
+      GoogleAuthProvider, signInWithPopup,
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import {
+      getFirestore, doc, setDoc, getDoc, updateDoc, collection,
+      getDocs, increment,
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    /* ===== Firebase configuration =====
+     * These keys are designed to be public — Firebase security is enforced
+     * by Firestore Rules + Auth, not by hiding them.
+     */
+    const firebaseConfig = {
+      apiKey: "AIzaSyDeJULgl0gRPgbThQSXoa-sK_DCvvjj6lk",
+      authDomain: "kaytact.firebaseapp.com",
+      projectId: "kaytact",
+      storageBucket: "kaytact.firebasestorage.app",
+      messagingSenderId: "828138537133",
+      appId: "1:828138537133:web:61125059f1d9069de40624",
+      measurementId: "G-W3NYRVL3JN"
+    };
+
+    function getAdminEmails() {
+      const raw = window.KAYTACT_ADMIN_EMAILS || "you@example.com";
+      return raw.split(",").map(s => s.trim().toLowerCase()).filter(Boolean);
+    }
+
+    const FIREBASE_CONFIG_PRESENT = firebaseConfig.apiKey && firebaseConfig.apiKey !== "FILL_ME_IN";
+    // FIREBASE_ENABLED is set after a connectivity probe — see checkFirebaseReachable().
+    let FIREBASE_ENABLED = FIREBASE_CONFIG_PRESENT;
+
+    let fbApp = null, fbAuth = null, fbDb = null;
+    if (FIREBASE_ENABLED) {
+      fbApp = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
+      fbAuth = getAuth(fbApp);
+      fbDb = getFirestore(fbApp);
+    }
+
+    /* ============= Helpers ============= */
+    const $ = (sel, root = document) => root.querySelector(sel);
+    const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+
+    function el(tag, attrs = {}, ...children) {
+      const e = document.createElement(tag);
+      for (const [k, v] of Object.entries(attrs || {})) {
+        if (v === null || v === undefined || v === false) continue;
+        if (k === "class") e.className = v;
+        else if (k === "html") e.innerHTML = v;
+        else if (k === "text") e.textContent = v;
+        else if (k === "style" && typeof v === "object") Object.assign(e.style, v);
+        else if (k.startsWith("on") && typeof v === "function") e.addEventListener(k.slice(2).toLowerCase(), v);
+        else if (k === "dataset" && typeof v === "object") Object.assign(e.dataset, v);
+        else e.setAttribute(k, v);
+      }
+      for (const child of children.flat()) {
+        if (child === null || child === undefined || child === false) continue;
+        if (typeof child === "string" || typeof child === "number") e.appendChild(document.createTextNode(String(child)));
+        else if (child instanceof Node) e.appendChild(child);
+      }
+      return e;
+    }
+
+    function debounce(fn, wait = 250) {
+      let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), wait); };
+    }
+
+    function escapeHtml(s) {
+      return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    }
+
+    /* ============= Icons ============= */
+    const ICONS = {
+      user: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+      phone: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>',
+      mail: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 5L2 7"/></svg>',
+      whatsapp: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51l-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.71.306 1.263.489 1.694.625.712.227 1.36.195 1.872.118.571-.085 1.758-.719 2.006-1.413.247-.694.247-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413"/></svg>',
+      qr: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="5" height="5"/><rect x="16" y="3" width="5" height="5"/><rect x="3" y="16" width="5" height="5"/><path d="M21 16h-3a2 2 0 0 0-2 2v3M21 21v.01M12 7v.01M12 3v.01M3 12h.01M21 12h.01M12 21v.01M12 16v.01"/></svg>',
+      share: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>',
+      copy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
+      download: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>',
+      check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+      x: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+      arrowRight: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>',
+      edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>',
+      eye: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>',
+      save: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>',
+      link: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>',
+      logout: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>',
+      shield: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>',
+      chart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>',
+      plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
+      trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
+      lock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>',
+      globe: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>',
+      mapPin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>',
+      zap: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>',
+      menu: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>',
+      home: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>',
+      facebook: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12z"/></svg>',
+      instagram: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>',
+      twitter: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>',
+      linkedin: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.063 2.063 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>',
+      telegram: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.139-5.061 3.345-.48.329-.913.489-1.302.481-.428-.01-1.252-.242-1.865-.442-.75-.243-1.349-.373-1.297-.789.027-.216.324-.437.89-.663 3.498-1.524 5.83-2.529 6.997-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>',
+      tiktok: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.55-.73 3.05-1.79 4.17-1.66 1.73-4.27 2.46-6.6 1.85-2.34-.62-4.27-2.55-4.91-4.89-.61-2.19-.07-4.66 1.44-6.37 1.27-1.45 3.21-2.27 5.13-2.21.04 1.43-.04 2.86-.04 4.29-.83-.27-1.81-.18-2.49.46-.92.71-1.31 1.96-.95 3.05.32 1.16 1.45 1.97 2.61 1.85 1.01-.05 1.94-.65 2.43-1.49.17-.31.27-.65.27-1.01.07-2.45.05-4.91.06-7.37.01-3.65-.01-7.31.03-10.96z"/></svg>',
+    };
+
+    /* ============= Toasts ============= */
+    function toast(message, opts = {}) {
+      const { type = "info", title, duration = 3500 } = opts;
+      const root = $("#toasts");
+      const t = el("div", { class: `toast ${type}`, role: "status" });
+      const ico = type === "success" ? ICONS.check : type === "error" ? ICONS.x : ICONS.zap;
+      t.innerHTML = `<span class="t-ico">${ico}</span><div class="t-msg">${title ? `<strong>${escapeHtml(title)}</strong>` : ""}<span>${escapeHtml(message)}</span></div>`;
+      root.appendChild(t);
+      setTimeout(() => {
+        t.style.transition = "opacity 0.3s, transform 0.3s";
+        t.style.opacity = "0";
+        t.style.transform = "translateY(10px)";
+        setTimeout(() => t.remove(), 300);
+      }, duration);
+    }
+
+    /* ============= Demo backend (localStorage) ============= */
+    const DEMO = {
+      keys: { profiles: "kaytact.profiles", users: "kaytact.users", usernames: "kaytact.usernames", stats: "kaytact.stats", session: "kaytact.session" },
+      read(k, f) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : f; } catch { return f; } },
+      write(k, v) { localStorage.setItem(k, JSON.stringify(v)); },
+      genUid() { return "u_" + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4); },
+      seed() {
+        const users = this.read(this.keys.users, {});
+        if (Object.keys(users).length) return;
+        const uid = "u_demo_awwal";
+        users["demo@kaytact.app"] = { uid, email: "demo@kaytact.app", password: "password123", emailVerified: true, createdAt: Date.now() - 86400000 };
+        this.write(this.keys.users, users);
+        const profiles = {
+          [uid]: {
+            uid, username: "awwal", name: "Awwal Abdullah",
+            photoURL: "",
+            email: "awwal@example.com",
+            phoneNumbers: [{ id: "p1", label: "Mobile", number: "+234 801 234 5678" }],
+            whatsapp: "+2348012345678",
+            company: "Kaytact Labs", title: "Founder & CEO",
+            website: "https://kaytact.com", location: "Lagos, Nigeria",
+            bio: "Building the future of digital contact cards. One tap. One link. One Kaytact.",
+            socials: { twitter: "https://twitter.com/awwal", instagram: "https://instagram.com/awwal", linkedin: "https://linkedin.com/in/awwal" },
+            customLinks: [{ id: "l1", label: "Book a call", url: "https://cal.com/awwal" }],
+            createdAt: Date.now() - 86400000, updatedAt: Date.now() - 3600000,
+          },
+        };
+        this.write(this.keys.profiles, profiles);
+        this.write(this.keys.usernames, { awwal: uid });
+        this.write(this.keys.stats, { awwal: { views: 247, contactSaves: 68, whatsappClicks: 51, phoneClicks: 22, emailClicks: 14 } });
+      },
+      currentUser() {
+        const uid = localStorage.getItem(this.keys.session);
+        if (!uid) return null;
+        const u = Object.values(this.read(this.keys.users, {})).find((x) => x.uid === uid);
+        return u ? { uid: u.uid, email: u.email, emailVerified: u.emailVerified } : null;
+      },
+    };
+    if (!FIREBASE_ENABLED) DEMO.seed();
+
+    /* ============= Backend facade ============= */
+    const EMPTY_STATS = { views: 0, contactSaves: 0, whatsappClicks: 0, phoneClicks: 0, emailClicks: 0 };
+
+    const Backend = {
+      mode: FIREBASE_ENABLED ? "firebase" : "demo",
+
+      async signUp(email, password) {
+        email = email.trim().toLowerCase();
+        if (password.length < 6) throw new Error("Password must be at least 6 characters.");
+        if (FIREBASE_ENABLED) {
+          const cred = await createUserWithEmailAndPassword(fbAuth, email, password);
+          try { await sendEmailVerification(cred.user); } catch {}
+          return { uid: cred.user.uid, email: cred.user.email, emailVerified: cred.user.emailVerified };
+        } else {
+          const users = DEMO.read(DEMO.keys.users, {});
+          if (users[email]) throw new Error("An account with this email already exists.");
+          const uid = DEMO.genUid();
+          users[email] = { uid, email, password, emailVerified: true, createdAt: Date.now() };
+          DEMO.write(DEMO.keys.users, users);
+          localStorage.setItem(DEMO.keys.session, uid);
+          window.dispatchEvent(new Event("kaytact-auth"));
+          return { uid, email, emailVerified: true };
+        }
+      },
+
+      async signIn(email, password) {
+        email = email.trim().toLowerCase();
+        if (FIREBASE_ENABLED) {
+          const cred = await signInWithEmailAndPassword(fbAuth, email, password);
+          return { uid: cred.user.uid, email: cred.user.email, emailVerified: cred.user.emailVerified };
+        } else {
+          const users = DEMO.read(DEMO.keys.users, {});
+          const u = users[email];
+          if (!u || u.password !== password) throw new Error("Invalid email or password.");
+          localStorage.setItem(DEMO.keys.session, u.uid);
+          window.dispatchEvent(new Event("kaytact-auth"));
+          return { uid: u.uid, email: u.email, emailVerified: u.emailVerified };
+        }
+      },
+
+      async signInWithGoogle() {
+        if (!FIREBASE_ENABLED) throw new Error("Google sign-in requires Firebase.");
+        const provider = new GoogleAuthProvider();
+        const cred = await signInWithPopup(fbAuth, provider);
+        return { uid: cred.user.uid, email: cred.user.email, emailVerified: cred.user.emailVerified };
+      },
+
+      async signOut() {
+        if (FIREBASE_ENABLED) await signOut(fbAuth);
+        else { localStorage.removeItem(DEMO.keys.session); window.dispatchEvent(new Event("kaytact-auth")); }
+      },
+
+      async resetPassword(email) {
+        email = email.trim().toLowerCase();
+        if (FIREBASE_ENABLED) {
+          await sendPasswordResetEmail(fbAuth, email);
+        } else {
+          const users = DEMO.read(DEMO.keys.users, {});
+          if (!users[email]) throw new Error("No account found for that email.");
+        }
+      },
+
+      onAuthChange(cb) {
+        if (FIREBASE_ENABLED) {
+          return onAuthStateChanged(fbAuth, (u) => {
+            cb(u ? { uid: u.uid, email: u.email, emailVerified: u.emailVerified } : null);
+          });
+        } else {
+          const handler = () => cb(DEMO.currentUser());
+          window.addEventListener("kaytact-auth", handler);
+          handler();
+          return () => window.removeEventListener("kaytact-auth", handler);
+        }
+      },
+
+      async createProfile(profile) {
+        if (FIREBASE_ENABLED) {
+          await setDoc(doc(fbDb, "profiles", profile.uid), { ...profile, createdAt: Date.now(), updatedAt: Date.now() });
+          await setDoc(doc(fbDb, "usernames", profile.username.toLowerCase()), { uid: profile.uid, username: profile.username });
+          await setDoc(doc(fbDb, "stats", profile.username.toLowerCase()), { ...EMPTY_STATS }, { merge: true });
+        } else {
+          const profiles = DEMO.read(DEMO.keys.profiles, {});
+          profiles[profile.uid] = { ...profile, createdAt: Date.now(), updatedAt: Date.now() };
+          DEMO.write(DEMO.keys.profiles, profiles);
+          const idx = DEMO.read(DEMO.keys.usernames, {});
+          idx[profile.username.toLowerCase()] = profile.uid;
+          DEMO.write(DEMO.keys.usernames, idx);
+          const sm = DEMO.read(DEMO.keys.stats, {});
+          if (!sm[profile.username.toLowerCase()]) {
+            sm[profile.username.toLowerCase()] = { ...EMPTY_STATS };
+            DEMO.write(DEMO.keys.stats, sm);
+          }
+        }
+      },
+
+      async updateProfile(uid, patch) {
+        if (FIREBASE_ENABLED) {
+          const ref = doc(fbDb, "profiles", uid);
+          const cur = (await getDoc(ref)).data();
+          await updateDoc(ref, { ...patch, updatedAt: Date.now() });
+          if (patch.username && cur && cur.username !== patch.username) {
+            await setDoc(doc(fbDb, "usernames", patch.username.toLowerCase()), { uid, username: patch.username });
+            await setDoc(doc(fbDb, "stats", patch.username.toLowerCase()), { ...EMPTY_STATS }, { merge: true });
+          }
+        } else {
+          const profiles = DEMO.read(DEMO.keys.profiles, {});
+          if (!profiles[uid]) throw new Error("Profile not found");
+          const oldUsername = profiles[uid].username;
+          profiles[uid] = { ...profiles[uid], ...patch, updatedAt: Date.now() };
+          DEMO.write(DEMO.keys.profiles, profiles);
+          if (patch.username && patch.username !== oldUsername) {
+            const idx = DEMO.read(DEMO.keys.usernames, {});
+            delete idx[oldUsername.toLowerCase()];
+            idx[patch.username.toLowerCase()] = uid;
+            DEMO.write(DEMO.keys.usernames, idx);
+            const sm = DEMO.read(DEMO.keys.stats, {});
+            if (!sm[patch.username.toLowerCase()]) {
+              sm[patch.username.toLowerCase()] = sm[oldUsername.toLowerCase()] || { ...EMPTY_STATS };
+              DEMO.write(DEMO.keys.stats, sm);
+            }
+          }
+        }
+      },
+
+      async getProfileByUid(uid) {
+        if (FIREBASE_ENABLED) {
+          const snap = await getDoc(doc(fbDb, "profiles", uid));
+          if (!snap.exists()) return null;
+          return { uid, ...snap.data() };
+        } else {
+          return DEMO.read(DEMO.keys.profiles, {})[uid] || null;
+        }
+      },
+
+      async getProfileByUsername(username) {
+        username = username.toLowerCase();
+        if (FIREBASE_ENABLED) {
+          const un = await getDoc(doc(fbDb, "usernames", username));
+          if (!un.exists()) return null;
+          return this.getProfileByUid(un.data().uid);
+        } else {
+          const idx = DEMO.read(DEMO.keys.usernames, {});
+          const uid = idx[username];
+          return uid ? await this.getProfileByUid(uid) : null;
+        }
+      },
+
+      async isUsernameTaken(username) {
+        username = username.toLowerCase();
+        if (FIREBASE_ENABLED) {
+          const un = await getDoc(doc(fbDb, "usernames", username));
+          return un.exists();
+        } else {
+          return Boolean(DEMO.read(DEMO.keys.usernames, {})[username]);
+        }
+      },
+
+      async incrementStat(username, event) {
+        username = username.toLowerCase();
+        const field = { view: "views", contactSave: "contactSaves", whatsappClick: "whatsappClicks", phoneClick: "phoneClicks", emailClick: "emailClicks" }[event];
+        if (FIREBASE_ENABLED) {
+          await setDoc(doc(fbDb, "stats", username), { [field]: increment(1) }, { merge: true });
+        } else {
+          const sm = DEMO.read(DEMO.keys.stats, {});
+          sm[username] = sm[username] || { ...EMPTY_STATS };
+          sm[username][field] += 1;
+          DEMO.write(DEMO.keys.stats, sm);
+        }
+      },
+
+      async getStats(username) {
+        username = username.toLowerCase();
+        if (FIREBASE_ENABLED) {
+          const snap = await getDoc(doc(fbDb, "stats", username));
+          if (!snap.exists()) return { ...EMPTY_STATS };
+          return { ...EMPTY_STATS, ...snap.data() };
+        } else {
+          return DEMO.read(DEMO.keys.stats, {})[username] || { ...EMPTY_STATS };
+        }
+      },
+
+      async listAllProfiles() {
+        if (FIREBASE_ENABLED) {
+          const snap = await getDocs(collection(fbDb, "profiles"));
+          return snap.docs.map((d) => ({ uid: d.id, ...d.data() }));
+        } else {
+          return Object.values(DEMO.read(DEMO.keys.profiles, {})).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        }
+      },
+
+      async listAllStats() {
+        if (FIREBASE_ENABLED) {
+          const snap = await getDocs(collection(fbDb, "stats"));
+          return snap.docs.map((d) => ({ username: d.id, stats: { ...EMPTY_STATS, ...d.data() } }));
+        } else {
+          return Object.entries(DEMO.read(DEMO.keys.stats, {})).map(([username, stats]) => ({ username, stats }));
+        }
+      },
+
+      async setProfileDisabled(uid, disabled) {
+        if (FIREBASE_ENABLED) {
+          await updateDoc(doc(fbDb, "profiles", uid), { disabled });
+        } else {
+          const profiles = DEMO.read(DEMO.keys.profiles, {});
+          if (profiles[uid]) { profiles[uid].disabled = disabled; DEMO.write(DEMO.keys.profiles, profiles); }
+        }
+      },
+
+      async adminChangeUsername(uid, newUsername) {
+        newUsername = newUsername.toLowerCase();
+        if (await this.isUsernameTaken(newUsername)) throw new Error("Username already taken");
+        if (FIREBASE_ENABLED) {
+          const p = await this.getProfileByUid(uid);
+          if (!p) throw new Error("Profile not found");
+          await updateDoc(doc(fbDb, "profiles", uid), { username: newUsername, updatedAt: Date.now() });
+          await setDoc(doc(fbDb, "usernames", newUsername), { uid, username: newUsername });
+          await setDoc(doc(fbDb, "stats", newUsername), { ...EMPTY_STATS }, { merge: true });
+        } else {
+          const profiles = DEMO.read(DEMO.keys.profiles, {});
+          if (!profiles[uid]) throw new Error("Profile not found");
+          const idx = DEMO.read(DEMO.keys.usernames, {});
+          delete idx[profiles[uid].username.toLowerCase()];
+          idx[newUsername] = uid;
+          DEMO.write(DEMO.keys.usernames, idx);
+          profiles[uid].username = newUsername;
+          profiles[uid].updatedAt = Date.now();
+          DEMO.write(DEMO.keys.profiles, profiles);
+        }
+      },
+    };
+
+    function isAdminEmail(email) {
+      if (!email) return false;
+      return getAdminEmails().includes(email.toLowerCase());
+    }
+
+    /* ============= App state ============= */
+    const state = { user: null, authReady: false };
+
+    /* ============= Connectivity probe =============
+     * On boot, try a lightweight Firestore read. If it fails (e.g. offline,
+     * blocked by network, misconfigured), fall back to demo mode so the app
+     * stays usable. On Vercel production this should always succeed.
+     */
+    async function probeFirebase() {
+      if (!FIREBASE_CONFIG_PRESENT) return false;
+      try {
+        // Quick test: try to read a non-existent doc. If the network is up
+        // and Firebase is reachable, this resolves quickly (doc just won't exist).
+        // Use a normal-looking ID — Firestore reserves IDs starting with __.
+        await Promise.race([
+          getDoc(doc(fbDb, "usernames", "probe-connectivity-test")),
+          new Promise((_, reject) => setTimeout(() => reject(new Error("probe timeout")), 4000)),
+        ]);
+        return true;
+      } catch (e) {
+        console.warn("[kaytact] Firebase unreachable, falling back to demo mode:", e.message);
+        return false;
+      }
+    }
+
+    /* ============= Router ============= */
+    function getRoute() {
+      const hashPath = window.location.hash.replace(/^#/, "");
+      const path = (hashPath && hashPath.startsWith("/"))
+        ? hashPath.replace(/\/+$/, "") || "/"
+        : (window.location.pathname.replace(/\/+$/, "") || "/");
+      const q = new URLSearchParams(window.location.search);
+      return { path, query: q };
+    }
+
+    const RESERVED = new Set(["admin", "dashboard", "login", "signup", "forgot-password", "reset-password", "edit", "settings", "api", "manifest.json", "sw.js", "qr-lib.js", "icon.svg", "icon-192.png", "icon-512.png", "apple-touch-icon.png", "favicon.ico", "favicon.png", "robots.txt"]);
+
+    async function router() {
+      const { path } = getRoute();
+      const app = $("#app");
+      app.innerHTML = "";
+      app.classList.remove("fade-in");
+      window.scrollTo({ top: 0, behavior: "instant" });
+
+      const normalizedPath = (path === "/kaytact-app.html" || path === "/index.html") ? "/" : path;
+
+      if (normalizedPath === "/" || normalizedPath === "") return renderLanding();
+      if (normalizedPath === "/login") return renderAuth("login");
+      if (normalizedPath === "/signup") return renderAuth("signup");
+      if (normalizedPath === "/forgot-password") return renderAuth("forgot");
+      if (normalizedPath === "/dashboard") return renderDashboard();
+      if (normalizedPath === "/dashboard/edit") return renderDashboardEdit();
+      if (normalizedPath === "/dashboard/analytics") return renderDashboardAnalytics();
+      if (normalizedPath === "/dashboard/qr") return renderDashboardQR();
+      if (normalizedPath === "/admin") return renderAdmin();
+
+      const username = decodeURIComponent(normalizedPath.slice(1)).toLowerCase();
+      if (username && !RESERVED.has(username)) return renderPublicProfile(username);
+
+      return renderNotFound();
+    }
+
+    function navigate(to) {
+      const current = window.location.pathname + window.location.search + window.location.hash;
+      if (to === current) return;
+      window.history.pushState({}, "", to);
+      router();
+    }
+    window.addEventListener("popstate", router);
+    window.addEventListener("hashchange", router);
+
+    document.addEventListener("click", (e) => {
+      const a = e.target.closest("a");
+      if (!a) return;
+      const href = a.getAttribute("href");
+      if (!href) return;
+      if (a.target === "_blank" || a.hasAttribute("download")) return;
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      if (/^(mailto:|tel:|sms:|https?:|\/\/)/i.test(href)) return;
+      if (href.startsWith("#")) return;
+      if (href.startsWith("/")) { e.preventDefault(); navigate(href); }
+    });
+
+    /* ============= vCard generation ============= */
+    function escapeText(s) {
+      if (!s) return "";
+      return String(s).replace(/\\/g, "\\\\").replace(/\n/g, "\\n").replace(/,/g, "\\,").replace(/;/g, "\\;");
+    }
+    function normalizePhone(s) { return (s || "").replace(/[^\d+]/g, ""); }
+
+    function buildVCard(p) {
+      const L = ["BEGIN:VCARD", "VERSION:3.0"];
+      const parts = (p.name || "").trim().split(/\s+/);
+      const last = parts.length > 1 ? parts.pop() : "";
+      const first = parts.join(" ");
+      L.push(`N:${escapeText(last)};${escapeText(first)};;;`);
+      L.push(`FN:${escapeText(p.name)}`);
+      if (p.company) L.push(`ORG:${escapeText(p.company)}`);
+      if (p.title) L.push(`TITLE:${escapeText(p.title)}`);
+      for (const ph of p.phoneNumbers || []) {
+        if (!ph.number) continue;
+        L.push(`TEL;TYPE=CELL,VOICE:${normalizePhone(ph.number)}`);
+      }
+      if (p.whatsapp) L.push(`TEL;TYPE=CELL,VOICE;X-WA:${normalizePhone(p.whatsapp)}`);
+      if (p.email) L.push(`EMAIL;TYPE=INTERNET:${escapeText(p.email)}`);
+      if (p.website) L.push(`URL:${(p.website || "").trim()}`);
+      if (p.location) L.push(`ADR;TYPE=WORK:;;${escapeText(p.location)};;;;`);
+      if (p.bio) L.push(`NOTE:${escapeText(p.bio)}`);
+      const socials = [];
+      if (p.socials?.facebook) socials.push(["Facebook", p.socials.facebook]);
+      if (p.socials?.instagram) socials.push(["Instagram", p.socials.instagram]);
+      if (p.socials?.twitter) socials.push(["Twitter", p.socials.twitter]);
+      if (p.socials?.linkedin) socials.push(["LinkedIn", p.socials.linkedin]);
+      if (p.socials?.telegram) socials.push(["Telegram", p.socials.telegram]);
+      if (p.socials?.tiktok) socials.push(["TikTok", p.socials.tiktok]);
+      for (const [t, u] of socials) L.push(`X-SOCIALPROFILE;TYPE=${t}:${(u || "").trim()}`);
+      for (const cl of p.customLinks || []) { if (cl.url) L.push(`URL:${(cl.url || "").trim()}`); }
+      if (p.photoURL) L.push(`PHOTO;VALUE=URI:${(p.photoURL || "").trim()}`);
+      L.push(`REV:${new Date().toISOString()}`);
+      L.push("END:VCARD");
+      return L.join("\r\n");
+    }
+
+    function downloadVCard(p) {
+      const vcf = buildVCard(p);
+      const blob = new Blob([vcf], { type: "text/vcard;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = (p.name || p.username || "contact").trim().replace(/[^a-zA-Z0-9-_]+/g, "_").toLowerCase() + ".vcf";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+    }
+
+    /* ============= Username validation ============= */
+    const USERNAME_RE = /^[a-z][a-z0-9_-]{2,31}$/;
+    const CONSEC_RE = /[-_]{2,}/;
+    function validateUsername(u) {
+      u = (u || "").trim().toLowerCase();
+      if (!u) return { ok: false, msg: "Username is required." };
+      if (u.length < 3) return { ok: false, msg: "Must be at least 3 characters." };
+      if (u.length > 32) return { ok: false, msg: "Must be 32 characters or fewer." };
+      if (CONSEC_RE.test(u)) return { ok: false, msg: "No consecutive hyphens or underscores." };
+      if (!/^[a-z]/.test(u)) return { ok: false, msg: "Must start with a letter." };
+      if (!USERNAME_RE.test(u)) return { ok: false, msg: "Only lowercase letters, numbers, hyphens, underscores." };
+      if (RESERVED.has(u)) return { ok: false, msg: "This username is reserved." };
+      return { ok: true };
+    }
+
+    /* ============= Sharing ============= */
+    function siteUrl() {
+      if (window.KAYTACT_SITE_URL) return String(window.KAYTACT_SITE_URL).replace(/\/$/, "");
+      return window.location.origin;
+    }
+    function profileUrl(username) { return `${siteUrl()}/${encodeURIComponent(username.toLowerCase())}`; }
+    function whatsappUrl(p) {
+      const wa = p.whatsapp || p.phoneNumbers?.[0]?.number || "";
+      const cleaned = (wa || "").replace(/[^\d]/g, "");
+      return cleaned ? `https://wa.me/${cleaned}` : "";
+    }
+    function telUrl(p) {
+      const ph = p.phoneNumbers?.find((x) => x.number)?.number;
+      return ph ? `tel:${normalizePhone(ph)}` : "";
+    }
+    function mailtoUrl(p) { return p.email ? `mailto:${p.email}` : ""; }
+    async function copyToClipboard(text) {
+      try {
+        if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(text); return true; }
+        const ta = document.createElement("textarea");
+        ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+        document.body.appendChild(ta); ta.select();
+        const ok = document.execCommand("copy");
+        ta.remove();
+        return ok;
+      } catch { return false; }
+    }
+    async function nativeShare(p) {
+      if (!navigator.share) return false;
+      try {
+        await navigator.share({
+          title: `${p.name} — Kaytact`,
+          text: `Save my contact on Kaytact — ${p.name}`,
+          url: profileUrl(p.username),
+        });
+        return true;
+      } catch { return false; }
+    }
+
+    /* ============= QR code generation ============= */
+    function loadQrLib() {
+      return new Promise((resolve, reject) => {
+        if (window.qrcode) return resolve(window.qrcode);
+        const candidates = ["/qr-lib.js", "https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"];
+        let idx = 0;
+        const tryNext = () => {
+          if (idx >= candidates.length) return reject(new Error("Failed to load QR library"));
+          const s = document.createElement("script");
+          s.src = candidates[idx++];
+          s.onload = () => window.qrcode ? resolve(window.qrcode) : tryNext();
+          s.onerror = tryNext;
+          document.head.appendChild(s);
+        };
+        tryNext();
+      });
+    }
+    async function makeQrCanvas(text, size = 240) {
+      try {
+        const qrcode = await loadQrLib();
+        const qr = qrcode(0, "M");
+        qr.addData(text);
+        qr.make();
+        const count = qr.getModuleCount();
+        const canvas = document.createElement("canvas");
+        const scale = Math.max(2, Math.floor(size / (count + 2)));
+        const margin = 1;
+        canvas.width = (count + margin * 2) * scale;
+        canvas.height = canvas.width;
+        const ctx = canvas.getContext("2d");
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "#070E16";
+        for (let r = 0; r < count; r++) {
+          for (let c = 0; c < count; c++) {
+            if (qr.isDark(r, c)) ctx.fillRect((c + margin) * scale, (r + margin) * scale, scale, scale);
+          }
+        }
+        return canvas;
+      } catch (e) { console.error("QR canvas error:", e); return null; }
+    }
+    async function makeQrDataUrl(text, size = 320) {
+      const canvas = await makeQrCanvas(text, size);
+      return canvas ? canvas.toDataURL("image/png") : null;
+    }
+
+    /* ============= Image upload ============= */
+    function fileToDataURL(file, maxSize = 512) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement("canvas");
+            const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+            canvas.width = Math.round(img.width * scale);
+            canvas.height = Math.round(img.height * scale);
+            canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+            resolve(canvas.toDataURL("image/jpeg", 0.85));
+          };
+          img.onerror = reject;
+          img.src = reader.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    /* ============= Auth ============= */
+    async function requireAuth(redirect = "/login") {
+      if (!state.authReady) {
+        await new Promise((res) => {
+          const unsub = Backend.onAuthChange(() => { if (state.authReady) { unsub(); res(); } });
+        });
+      }
+      if (!state.user) {
+        navigate(redirect + "?next=" + encodeURIComponent(window.location.pathname));
+        return null;
+      }
+      return state.user;
+    }
+
+    /* Auth listener is wired in the boot sequence (after the Firebase
+       connectivity probe) so demo mode is correctly detected when
+       Firebase is unreachable. */
+
+    function updateTopbarState() {
+      $$(".topbar-user-slot").forEach((slot) => {
+        slot.innerHTML = "";
+        if (state.user) {
+          const dash = el("a", { href: "/dashboard" }, "dashboard");
+          slot.appendChild(dash);
+        } else {
+          const login = el("a", { href: "/login" }, "login");
+          const signup = el("a", { href: "/signup" }, "sign up");
+          slot.append(login, signup);
+        }
+      });
+    }
+
+    function setMeta(name, content) {
+      let m = document.querySelector(`meta[property="${name}"]`) || document.querySelector(`meta[name="${name}"]`);
+      if (!m) {
+        m = document.createElement("meta");
+        if (name.startsWith("og:")) m.setAttribute("property", name); else m.setAttribute("name", name);
+        document.head.appendChild(m);
+      }
+      m.setAttribute("content", content);
+    }
+
+    /* ============================================================
+     *  UI RENDERERS
+     * ============================================================ */
+
+    function renderTopbar() {
+      const wrap = el("div", {});
+      // Demo mode banner (only if Firebase config is present but unreachable)
+      if (FIREBASE_CONFIG_PRESENT && !FIREBASE_ENABLED) {
+        const banner = el("div", {
+          style: {
+            background: "rgba(104,227,113,0.08)",
+            borderBottom: "1px solid rgba(104,227,113,0.2)",
+            color: "var(--primary)",
+            padding: "6px 16px",
+            textAlign: "center",
+            fontFamily: "var(--mono)",
+            fontSize: "11px",
+            textTransform: "uppercase",
+            letterSpacing: "0.1em",
+          },
+        });
+        banner.innerHTML = `// demo mode — firebase unreachable from this preview. data is local only.`;
+        wrap.appendChild(banner);
+      }
+      const bar = el("div", { class: "topbar" });
+      const inner = el("div", { class: "center-col row" });
+      const brand = el("a", { href: "/", class: "brand" });
+      brand.innerHTML = `<span class="brand-mark">K</span><span>kaytact</span>`;
+      const links = el("div", { class: "topbar-links topbar-user-slot" });
+      inner.append(brand, links);
+      bar.appendChild(inner);
+      wrap.appendChild(bar);
+      return wrap;
+    }
+
+    /* ============= Landing ============= */
+    function renderLanding() {
+      const app = $("#app");
+      app.innerHTML = "";
+
+      const page = el("div", { class: "page" });
+      page.appendChild(renderTopbar());
+
+      const main = el("main", { class: "landing center-col" });
+
+      const head = el("div", { class: "landing-head fade-in" });
+      head.innerHTML = `
+        <div class="eyebrow">// contacts</div>
+        <h1>Your contact.<br/><span class="primary-text">One tap away.</span></h1>
+        <p class="sub">Create your digital contact card and let anyone save your details instantly.</p>
+      `;
+      main.appendChild(head);
+
+      // Primary card — quick actions
+      const card = el("div", { class: "card fade-in" });
+      card.innerHTML = `
+        <div class="eyebrow-sm" style="margin-bottom: 14px;">// get started</div>
+        <div class="landing-actions">
+          <a class="btn btn-primary btn-block btn-lg" href="/signup">Create your Kaytact <span style="display:inline-flex;">${ICONS.arrowRight}</span></a>
+          <a class="btn btn-ghost btn-block" href="/awwal">View a live example</a>
+        </div>
+        <div class="landing-or">or sign in</div>
+        <a class="btn btn-ghost btn-block btn-sm" href="/login">I already have a Kaytact</a>
+      `;
+      main.appendChild(card);
+
+      // Features mini-card
+      const features = el("div", { class: "card-soft fade-in", style: { marginTop: "16px" } });
+      features.innerHTML = `
+        <div class="eyebrow-sm" style="margin-bottom: 12px;">// why kaytact</div>
+        <div class="mini-features">
+          <div class="mini-feature"><span class="check">${ICONS.check}</span><span><strong>One-tap save.</strong> Generates a real .vcf file that imports into any phone.</span></div>
+          <div class="mini-feature"><span class="check">${ICONS.check}</span><span><strong>One link.</strong> Share kaytact.com/yourname anywhere.</span></div>
+          <div class="mini-feature"><span class="check">${ICONS.check}</span><span><strong>QR built in.</strong> Print it, scan it, save it.</span></div>
+          <div class="mini-feature"><span class="check">${ICONS.check}</span><span><strong>Analytics.</strong> See views, saves, WhatsApp & call clicks.</span></div>
+          <div class="mini-feature"><span class="check">${ICONS.check}</span><span><strong>Mobile-first.</strong> Works on any phone with a browser.</span></div>
+        </div>
+      `;
+      main.appendChild(features);
+
+      // How it works mini-card
+      const how = el("div", { class: "card-soft fade-in", style: { marginTop: "16px" } });
+      how.innerHTML = `
+        <div class="eyebrow-sm" style="margin-bottom: 12px;">// how it works</div>
+        <div class="mini-features">
+          <div class="mini-feature"><span class="check">${ICONS.zap}</span><span><strong>1. Create</strong> your card with all your details.</span></div>
+          <div class="mini-feature"><span class="check">${ICONS.share}</span><span><strong>2. Share</strong> your link or QR code anywhere.</span></div>
+          <div class="mini-feature"><span class="check">${ICONS.save}</span><span><strong>3. They tap save</strong> — done, in your contacts.</span></div>
+        </div>
+      `;
+      main.appendChild(how);
+
+      // Final CTA
+      const cta = el("div", { class: "card fade-in", style: { marginTop: "16px", textAlign: "center" } });
+      cta.innerHTML = `
+        <div class="eyebrow-sm" style="margin-bottom: 10px;">// ready?</div>
+        <p class="small muted" style="margin-bottom: 16px;">Stop sending your number manually.<br/>Give them your Kaytact.</p>
+        <a class="btn btn-primary btn-block" href="/signup">Create your free Kaytact</a>
+      `;
+      main.appendChild(cta);
+
+      // Footer
+      const foot = el("div", { class: "landing-foot" });
+      foot.innerHTML = `
+        <a href="/login">log in</a> &nbsp;·&nbsp; <a href="/awwal">live demo</a> &nbsp;·&nbsp; <a href="/signup">sign up</a>
+        <div class="tiny muted-2" style="margin-top: 8px;">© ${new Date().getFullYear()} Kaytact</div>
+      `;
+      main.appendChild(foot);
+
+      page.appendChild(main);
+      app.appendChild(page);
+      updateTopbarState();
+    }
+
+    /* ============= Auth ============= */
+    function renderAuth(mode) {
+      const app = $("#app");
+      app.innerHTML = "";
+
+      let title, subtitle, submitLabel, altHref, altText;
+      if (mode === "login") {
+        title = "Welcome back"; subtitle = "Log in to manage your Kaytact.";
+        submitLabel = "Log in"; altHref = "/signup"; altText = "Don't have an account? Sign up";
+      } else if (mode === "signup") {
+        title = "Create your Kaytact"; subtitle = "Your contact. One tap away.";
+        submitLabel = "Create account"; altHref = "/login"; altText = "Already have an account? Log in";
+      } else {
+        title = "Reset password"; subtitle = "We'll send a reset link to your email.";
+        submitLabel = "Send reset link"; altHref = "/login"; altText = "Back to log in";
+      }
+
+      const page = el("div", { class: "page" });
+      page.appendChild(renderTopbar());
+      const main = el("main", { class: "auth-page center-col" });
+
+      const head = el("div", { class: "auth-head fade-in" });
+      head.innerHTML = `
+        <div class="eyebrow">// ${mode}</div>
+        <h1 style="margin-top: 12px;">${escapeHtml(title)}</h1>
+        <p class="sub">${escapeHtml(subtitle)}</p>
+      `;
+      main.appendChild(head);
+
+      const card = el("div", { class: "card fade-in" });
+      const form = el("form", { class: "stack gap-4" });
+
+      const emailField = el("div", { class: "field" });
+      emailField.innerHTML = `<label>Email</label><input id="email" name="email" type="email" autocomplete="email" required class="input" placeholder="you@email.com" />`;
+      form.appendChild(emailField);
+
+      if (mode !== "forgot") {
+        const passField = el("div", { class: "field" });
+        passField.innerHTML = `<label>Password</label><input id="password" name="password" type="password" autocomplete="${mode === "login" ? "current-password" : "new-password"}" required minlength="6" class="input" placeholder="At least 6 characters" />`;
+        form.appendChild(passField);
+      }
+
+      if (mode === "signup") {
+        const confirm = el("div", { class: "field" });
+        confirm.innerHTML = `<label>Confirm password</label><input id="confirm" type="password" autocomplete="new-password" required minlength="6" class="input" placeholder="Repeat your password" />`;
+        form.appendChild(confirm);
+        const terms = el("label", { class: "row gap-2 small muted", style: { cursor: "pointer", marginTop: "4px", alignItems: "flex-start" } });
+        terms.innerHTML = `<input type="checkbox" id="terms" required style="margin-top:3px; accent-color: var(--primary);" /><span>I agree to Kaytact's Terms and Privacy Policy.</span>`;
+        form.appendChild(terms);
+      }
+
+      if (mode === "login") {
+        const fp = el("div", { style: { textAlign: "right", marginTop: "-4px" } });
+        fp.innerHTML = `<a href="/forgot-password" style="color: var(--primary); font-size: 12px; font-family: var(--mono);">forgot?</a>`;
+        form.appendChild(fp);
+      }
+
+      const btn = el("button", { type: "submit", class: "btn btn-primary btn-block btn-lg", style: { marginTop: "4px" } }, submitLabel);
+      form.appendChild(btn);
+
+      if (FIREBASE_ENABLED && mode !== "forgot") {
+        const divider = el("div", { class: "landing-or" });
+        divider.innerHTML = `<span>or</span>`;
+        const google = el("button", { type: "button", class: "btn btn-ghost btn-block" });
+        google.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24"><path fill="#fff" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#fff" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" opacity="0.6"/></svg> <span>Continue with Google</span>`;
+        google.onclick = async () => {
+          try { btn.disabled = true; google.disabled = true; await Backend.signInWithGoogle(); toast("Welcome to Kaytact.", { type: "success" }); navigate("/dashboard"); }
+          catch (e) { toast(e.message || "Google sign-in failed.", { type: "error" }); }
+          finally { btn.disabled = false; google.disabled = false; }
+        };
+        form.append(divider, google);
+      }
+
+      if (!FIREBASE_ENABLED) {
+        const notice = el("div", { class: "card-soft small", style: { marginTop: "12px", textAlign: "center", color: "var(--muted)" } });
+        notice.innerHTML = `<span class="mono primary-text">// demo mode</span><br/>try <span class="mono">demo@kaytact.app</span> / <span class="mono">password123</span>`;
+        form.appendChild(notice);
+      }
+
+      const foot = el("div", { class: "auth-foot" });
+      foot.innerHTML = `<a href="${altHref}">${escapeHtml(altText)}</a>`;
+      form.appendChild(foot);
+
+      card.appendChild(form);
+      main.appendChild(card);
+      page.appendChild(main);
+      app.appendChild(page);
+
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const email = $("#email", form).value.trim();
+        const password = $("#password", form)?.value || "";
+        btn.disabled = true;
+        const orig = btn.innerHTML;
+        btn.innerHTML = `<span class="spinner"></span> Please wait…`;
+        try {
+          if (mode === "signup") {
+            const confirm = $("#confirm", form).value;
+            if (password !== confirm) throw new Error("Passwords do not match.");
+            if (!$("#terms", form).checked) throw new Error("Please accept the terms.");
+            await Backend.signUp(email, password);
+            toast("Account created!", { type: "success" });
+            navigate("/dashboard?onboarding=1");
+          } else if (mode === "login") {
+            await Backend.signIn(email, password);
+            toast("Welcome back.", { type: "success" });
+            const next = new URLSearchParams(window.location.search).get("next") || "/dashboard";
+            navigate(next);
+          } else {
+            await Backend.resetPassword(email);
+            toast("If that email exists, a reset link is on its way.", { type: "success" });
+            navigate("/login");
+          }
+        } catch (err) {
+          toast(err.message || "Something went wrong.", { type: "error" });
+          btn.disabled = false;
+          btn.innerHTML = orig;
+        }
+      });
+
+      setTimeout(() => $("#email", form)?.focus(), 100);
+      updateTopbarState();
+    }
+
+    /* ============= Not Found ============= */
+    function renderNotFound() {
+      const app = $("#app");
+      app.innerHTML = "";
+      const page = el("div", { class: "page" });
+      page.appendChild(renderTopbar());
+      const main = el("main", { class: "center-col", style: { padding: "80px 0", textAlign: "center" } });
+      main.innerHTML = `
+        <div class="fade-in">
+          <div class="eyebrow">// 404</div>
+          <h1 style="margin-top: 12px;">Page not found.</h1>
+          <p class="muted small" style="margin-top: 12px;">This page drifted off.</p>
+          <div class="landing-actions" style="max-width: 280px; margin: 24px auto 0;">
+            <a class="btn btn-primary btn-block" href="/">Go home</a>
+            <a class="btn btn-ghost btn-block" href="/signup">Create a Kaytact</a>
+          </div>
+        </div>
+      `;
+      page.appendChild(main);
+      app.appendChild(page);
+      updateTopbarState();
+    }
+
+    /* ============= Dashboard ============= */
+    async function renderDashboard() {
+      const app = $("#app");
+      app.innerHTML = `<div class="page-loading"><div class="stack center gap-3"><div class="spinner lg"></div></div></div>`;
+      const user = await requireAuth();
+      if (!user) return;
+
+      const profile = await Backend.getProfileByUid(user.uid);
+      const isOnboarding = new URLSearchParams(window.location.search).get("onboarding") === "1";
+
+      app.innerHTML = "";
+      const page = el("div", { class: "page" });
+      page.appendChild(renderTopbar());
+
+      const main = el("main", { class: "dash-page wide-col" });
+
+      const head = el("div", { class: "dash-head" });
+      head.innerHTML = `
+        <div>
+          <div class="eyebrow">// ${isOnboarding ? "welcome" : "dashboard"}</div>
+          <h1 style="margin-top: 6px;">${isOnboarding ? "Welcome to Kaytact" : "Dashboard"}</h1>
+          <div class="sub">${profile ? `Your Kaytact is live at <span class="mono">${siteUrl().replace(/^https?:\/\//, "")}/${escapeHtml(profile.username)}</span>` : "Let's create your Kaytact profile."}</div>
+        </div>
+        <div class="actions">
+          ${profile ? `<a class="btn btn-ghost btn-sm" href="/${escapeHtml(profile.username)}" data-internal>Preview</a><a class="btn btn-primary btn-sm" href="/dashboard/edit">${ICONS.edit} Edit</a>` : `<a class="btn btn-primary btn-sm" href="/dashboard/edit">Create profile</a>`}
+        </div>
+      `;
+      main.appendChild(head);
+
+      const grid = el("div", { class: "dash-grid" });
+
+      const side = el("aside", { class: "dash-side" });
+      [
+        { href: "/dashboard", label: "Overview", icon: ICONS.home },
+        { href: "/dashboard/edit", label: "Edit profile", icon: ICONS.edit },
+        { href: "/dashboard/analytics", label: "Analytics", icon: ICONS.chart },
+        { href: "/dashboard/qr", label: "QR code", icon: ICONS.qr },
+      ].forEach((it) => {
+        const a = el("a", { href: it.href, class: window.location.pathname === it.href ? "active" : "" });
+        a.innerHTML = `${it.icon}<span>${it.label}</span>`;
+        a.onclick = (e) => { e.preventDefault(); navigate(it.href); };
+        side.appendChild(a);
+      });
+      const logout = el("a", { href: "#", style: { color: "var(--muted)", marginTop: "8px" } });
+      logout.innerHTML = `${ICONS.logout}<span>Sign out</span>`;
+      logout.onclick = async (e) => { e.preventDefault(); await Backend.signOut(); toast("Signed out.", { type: "info" }); navigate("/"); };
+      side.appendChild(logout);
+
+      const content = el("div", { class: "dash-main" });
+
+      if (!profile) {
+        const empty = el("div", { class: "card fade-in" });
+        empty.innerHTML = `
+          <div class="empty">
+            <div class="ico">${ICONS.user}</div>
+            <h3>Your Kaytact isn't set up yet</h3>
+            <p>Add your details and pick a username. Your profile goes live instantly.</p>
+            <a class="btn btn-primary" href="/dashboard/edit" style="margin-top: 16px;">Create my Kaytact ${ICONS.arrowRight}</a>
+          </div>
+        `;
+        content.appendChild(empty);
+      } else {
+        // Summary
+        const summary = el("div", { class: "card fade-in" });
+        const initials = (profile.name || profile.username).slice(0, 2).toUpperCase();
+        summary.innerHTML = `
+          <div class="profile-summary">
+            <div class="avatar">${profile.photoURL ? `<img src="${escapeHtml(profile.photoURL)}" alt="" />` : escapeHtml(initials)}</div>
+            <div class="info">
+              <div class="name">${escapeHtml(profile.name)}</div>
+              <div class="meta">${escapeHtml(profile.title || "—")}${profile.company ? ` · ${escapeHtml(profile.company)}` : ""}</div>
+              <div class="link">${ICONS.link}<span>${siteUrl().replace(/^https?:\/\//, "")}/${escapeHtml(profile.username)}</span></div>
+            </div>
+            <div class="actions">
+              <a class="btn btn-ghost btn-sm" href="/${escapeHtml(profile.username)}" data-internal>Open</a>
+              <button class="btn btn-ghost btn-sm" id="copy-link-btn">${ICONS.copy} Copy</button>
+            </div>
+          </div>
+        `;
+        content.appendChild(summary);
+
+        // Stats
+        const stats = await Backend.getStats(profile.username);
+        const statsCard = el("div", { class: "card fade-in" });
+        statsCard.innerHTML = `
+          <div class="eyebrow-sm" style="margin-bottom: 12px;">// analytics</div>
+          <div class="stats-grid">
+            <div class="stat-card"><div class="ico">${ICONS.eye}</div><div class="num">${stats.views.toLocaleString()}</div><div class="lbl">Views</div></div>
+            <div class="stat-card"><div class="ico">${ICONS.save}</div><div class="num">${stats.contactSaves.toLocaleString()}</div><div class="lbl">Saves</div></div>
+            <div class="stat-card"><div class="ico">${ICONS.whatsapp}</div><div class="num">${stats.whatsappClicks.toLocaleString()}</div><div class="lbl">WhatsApp</div></div>
+            <div class="stat-card"><div class="ico">${ICONS.phone}</div><div class="num">${stats.phoneClicks.toLocaleString()}</div><div class="lbl">Calls</div></div>
+            <div class="stat-card"><div class="ico">${ICONS.mail}</div><div class="num">${stats.emailClicks.toLocaleString()}</div><div class="lbl">Emails</div></div>
+            <div class="stat-card"><div class="ico">${ICONS.share}</div><div class="num">${(stats.contactSaves + stats.whatsappClicks + stats.phoneClicks + stats.emailClicks).toLocaleString()}</div><div class="lbl">Actions</div></div>
+          </div>
+        `;
+        content.appendChild(statsCard);
+
+        // Quick link
+        const quick = el("div", { class: "card fade-in" });
+        quick.innerHTML = `
+          <div class="eyebrow-sm" style="margin-bottom: 12px;">// your link</div>
+          <div class="copy-pill" style="margin-bottom: 12px;"><span>${escapeHtml(profileUrl(profile.username))}</span></div>
+          <div class="row gap-2" style="flex-wrap: wrap;">
+            <button class="btn btn-ghost btn-sm" id="copy-link-btn-2">${ICONS.copy} Copy link</button>
+            <button class="btn btn-ghost btn-sm" id="share-btn">${ICONS.share} Share</button>
+            <a class="btn btn-ghost btn-sm" href="/dashboard/qr">${ICONS.qr} QR code</a>
+          </div>
+        `;
+        content.appendChild(quick);
+
+        const wireCopy = (b) => { if (!b) return; b.onclick = async () => { const ok = await copyToClipboard(profileUrl(profile.username)); toast(ok ? "Link copied." : "Couldn't copy.", { type: ok ? "success" : "error" }); }; };
+        wireCopy($("#copy-link-btn", content));
+        wireCopy($("#copy-link-btn-2", content));
+        const sb = $("#share-btn", content);
+        if (sb) sb.onclick = async () => { const ok = await nativeShare(profile); if (!ok) { const ok2 = await copyToClipboard(profileUrl(profile.username)); toast(ok2 ? "Link copied." : "Share failed.", { type: ok2 ? "success" : "error" }); } };
+      }
+
+      $$('a[data-internal]', head).forEach((a) => a.addEventListener("click", (e) => { e.preventDefault(); navigate(a.getAttribute("href")); }));
+
+      grid.append(side, content);
+      main.appendChild(grid);
+      page.appendChild(main);
+      app.appendChild(page);
+      updateTopbarState();
+    }
+
+    /* ============= Dashboard: Edit ============= */
+    async function renderDashboardEdit() {
+      const app = $("#app");
+      app.innerHTML = `<div class="page-loading"><div class="stack center gap-3"><div class="spinner lg"></div></div></div>`;
+      const user = await requireAuth();
+      if (!user) return;
+
+      const profile = (await Backend.getProfileByUid(user.uid)) || {
+        uid: user.uid, username: "", name: "", photoURL: "", email: user.email || "",
+        phoneNumbers: [{ id: "p1", label: "Mobile", number: "" }], whatsapp: "",
+        company: "", title: "", website: "", location: "", bio: "", socials: {}, customLinks: [],
+        createdAt: Date.now(), updatedAt: Date.now(),
+      };
+
+      app.innerHTML = "";
+      const page = el("div", { class: "page" });
+      page.appendChild(renderTopbar());
+      const main = el("main", { class: "dash-page wide-col" });
+
+      const head = el("div", { class: "dash-head" });
+      head.innerHTML = `
+        <div><div class="eyebrow">// edit</div><h1 style="margin-top: 6px;">Edit profile</h1></div>
+        <div class="actions"><a class="btn btn-ghost btn-sm" href="/dashboard">Back</a></div>
+      `;
+      main.appendChild(head);
+
+      const grid = el("div", { class: "dash-grid" });
+      const side = el("aside", { class: "dash-side" });
+      [
+        { href: "/dashboard", label: "Overview", icon: ICONS.home },
+        { href: "/dashboard/edit", label: "Edit profile", icon: ICONS.edit, active: true },
+        { href: "/dashboard/analytics", label: "Analytics", icon: ICONS.chart },
+        { href: "/dashboard/qr", label: "QR code", icon: ICONS.qr },
+      ].forEach((it) => {
+        const a = el("a", { href: it.href, class: it.active ? "active" : "" });
+        a.innerHTML = `${it.icon}<span>${it.label}</span>`;
+        a.onclick = (e) => { e.preventDefault(); navigate(it.href); };
+        side.appendChild(a);
+      });
+
+      const content = el("div", { class: "dash-main" });
+
+      // Basics
+      const basics = el("div", { class: "card fade-in" });
+      basics.innerHTML = `
+        <div class="edit-section">
+          <h3>// profile basics</h3>
+          <div class="photo-upload" style="margin-bottom: 16px;">
+            <div id="photo-preview" class="photo-preview">${profile.photoURL ? `<img src="${escapeHtml(profile.photoURL)}" alt="" />` : escapeHtml((profile.name || "K").slice(0, 2).toUpperCase())}</div>
+            <div class="actions">
+              <label class="btn btn-ghost btn-sm" style="cursor: pointer;">${ICONS.save} Upload photo<input type="file" accept="image/*" id="photo-input" style="display:none;" /></label>
+              ${profile.photoURL ? `<button class="btn btn-ghost btn-sm" id="remove-photo" style="color: var(--red);">Remove</button>` : ""}
+            </div>
+          </div>
+          <div class="edit-row two">
+            <div class="field"><label>Full name *</label><input id="f-name" class="input" value="${escapeHtml(profile.name)}" placeholder="Your full name" /></div>
+            <div class="field"><label>Username *</label><div class="input-prefix"><span class="prefix">${siteUrl().replace(/^https?:\/\//, "")}/</span><input id="f-username" value="${escapeHtml(profile.username)}" placeholder="yourname" autocomplete="off" spellcheck="false" /></div><div class="hint" id="username-hint">3–32 chars, lowercase letters, numbers, hyphens.</div></div>
+          </div>
+          <div class="edit-row two" style="margin-top: 12px;">
+            <div class="field"><label>Job title</label><input id="f-title" class="input" value="${escapeHtml(profile.title || "")}" placeholder="CEO, Designer…" /></div>
+            <div class="field"><label>Company</label><input id="f-company" class="input" value="${escapeHtml(profile.company || "")}" placeholder="Where you work" /></div>
+          </div>
+          <div class="field" style="margin-top: 12px;"><label>Bio</label><textarea id="f-bio" class="textarea" placeholder="A line or two about you.">${escapeHtml(profile.bio || "")}</textarea></div>
+        </div>
+      `;
+      content.appendChild(basics);
+
+      // Contact
+      const contact = el("div", { class: "card fade-in" });
+      contact.innerHTML = `
+        <div class="edit-section">
+          <h3>// contact</h3>
+          <div class="field" style="margin-bottom: 14px;"><label>Email</label><input class="input" value="${escapeHtml(profile.email)}" disabled /><div class="hint">Tied to your account.</div></div>
+          <div class="field" style="margin-bottom: 14px;">
+            <label>Phone numbers</label>
+            <div id="phones-list" class="stack gap-2"></div>
+            <button class="btn btn-ghost btn-sm" id="add-phone" style="margin-top: 8px;">${ICONS.plus} Add another</button>
+          </div>
+          <div class="field"><label>WhatsApp number</label><input id="f-whatsapp" class="input" value="${escapeHtml(profile.whatsapp || "")}" placeholder="+234 801 234 5678" /><div class="hint">For the WhatsApp button. Falls back to first phone.</div></div>
+        </div>
+      `;
+      content.appendChild(contact);
+
+      // Web + location
+      const web = el("div", { class: "card fade-in" });
+      web.innerHTML = `
+        <div class="edit-section">
+          <h3>// web & location</h3>
+          <div class="edit-row two">
+            <div class="field"><label>Website</label><input id="f-website" class="input" value="${escapeHtml(profile.website || "")}" placeholder="https://…" /></div>
+            <div class="field"><label>Location</label><input id="f-location" class="input" value="${escapeHtml(profile.location || "")}" placeholder="Lagos, Nigeria" /></div>
+          </div>
+        </div>
+      `;
+      content.appendChild(web);
+
+      // Socials
+      const socials = el("div", { class: "card fade-in" });
+      socials.innerHTML = `
+        <div class="edit-section">
+          <h3>// socials</h3>
+          <div class="edit-row two">
+            ${["facebook","instagram","twitter","linkedin","telegram","tiktok"].map((s) => `<div class="field"><label>${s[0].toUpperCase() + s.slice(1)}</label><input id="f-${s}" class="input" value="${escapeHtml(profile.socials?.[s] || "")}" placeholder="https://${s}.com/yourhandle" /></div>`).join("")}
+          </div>
+        </div>
+      `;
+      content.appendChild(socials);
+
+      // Custom links
+      const custom = el("div", { class: "card fade-in" });
+      custom.innerHTML = `
+        <div class="edit-section">
+          <h3>// custom links</h3>
+          <div id="custom-list" class="stack gap-2"></div>
+          <button class="btn btn-ghost btn-sm" id="add-custom" style="margin-top: 8px;">${ICONS.plus} Add link</button>
+        </div>
+      `;
+      content.appendChild(custom);
+
+      // Save bar
+      const saveBar = el("div", { class: "save-bar fade-in" });
+      saveBar.innerHTML = `<button class="btn btn-ghost btn-sm" id="cancel-btn">Cancel</button><button class="btn btn-primary" id="save-btn">${ICONS.save} Save changes</button>`;
+      content.appendChild(saveBar);
+
+      grid.append(side, content);
+      main.appendChild(grid);
+      page.appendChild(main);
+      app.appendChild(page);
+
+      // Phones list
+      const phonesList = $("#phones-list", content);
+      const phoneEntries = (profile.phoneNumbers && profile.phoneNumbers.length ? profile.phoneNumbers : [{ id: "p1", label: "Mobile", number: "" }]).map(p => ({ ...p }));
+      function renderPhones() {
+        phonesList.innerHTML = "";
+        phoneEntries.forEach((p, i) => {
+          const row = el("div", { class: "phone-row" });
+          row.innerHTML = `
+            <input class="input label-input" placeholder="Label" value="${escapeHtml(p.label)}" data-i="${i}" data-k="label" />
+            <input class="input number-input" placeholder="+234 801 234 5678" value="${escapeHtml(p.number)}" data-i="${i}" data-k="number" />
+            ${phoneEntries.length > 1 ? `<button class="btn btn-ghost btn-icon btn-sm" data-del="${i}" style="color: var(--red);">${ICONS.trash}</button>` : ""}
+          `;
+          phonesList.appendChild(row);
+        });
+        $$("[data-i]", phonesList).forEach((inp) => inp.addEventListener("input", () => { phoneEntries[+inp.dataset.i][inp.dataset.k] = inp.value; }));
+        $$("[data-del]", phonesList).forEach((b) => b.onclick = () => { phoneEntries.splice(+b.dataset.del, 1); renderPhones(); });
+      }
+      renderPhones();
+      $("#add-phone", content).onclick = () => { phoneEntries.push({ id: "p" + Date.now(), label: "Mobile", number: "" }); renderPhones(); };
+
+      // Custom links
+      const customList = $("#custom-list", content);
+      const customEntries = (profile.customLinks || []).map(c => ({ ...c }));
+      function renderCustom() {
+        customList.innerHTML = "";
+        customEntries.forEach((c, i) => {
+          const row = el("div", { class: "custom-row" });
+          row.innerHTML = `
+            <input class="input label-input" placeholder="Label (e.g. Book a call)" value="${escapeHtml(c.label)}" data-i="${i}" data-k="label" />
+            <input class="input url-input" placeholder="https://…" value="${escapeHtml(c.url)}" data-i="${i}" data-k="url" />
+            <button class="btn btn-ghost btn-icon btn-sm" data-del="${i}" style="color: var(--red);">${ICONS.trash}</button>
+          `;
+          customList.appendChild(row);
+        });
+        $$("[data-i]", customList).forEach((inp) => inp.addEventListener("input", () => { customEntries[+inp.dataset.i][inp.dataset.k] = inp.value; }));
+        $$("[data-del]", customList).forEach((b) => b.onclick = () => { customEntries.splice(+b.dataset.del, 1); renderCustom(); });
+      }
+      renderCustom();
+      $("#add-custom", content).onclick = () => { customEntries.push({ id: "l" + Date.now(), label: "", url: "" }); renderCustom(); };
+
+      // Photo upload
+      const photoInput = $("#photo-input", content);
+      const photoPreview = $("#photo-preview", content);
+      let newPhotoDataUrl = null;
+      photoInput.onchange = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        if (file.size > 5 * 1024 * 1024) { toast("Image must be under 5 MB.", { type: "error" }); return; }
+        try {
+          const dataUrl = await fileToDataURL(file, 512);
+          newPhotoDataUrl = dataUrl;
+          photoPreview.innerHTML = `<img src="${dataUrl}" alt="" style="width:100%;height:100%;object-fit:cover;" />`;
+          toast("Photo ready — save to apply.", { type: "success" });
+        } catch { toast("Couldn't process that image.", { type: "error" }); }
+      };
+      const rmBtn = $("#remove-photo", content);
+      if (rmBtn) rmBtn.onclick = () => { newPhotoDataUrl = ""; photoPreview.textContent = (profile.name || "K").slice(0, 2).toUpperCase(); };
+
+      // Username validation
+      const userInput = $("#f-username", content);
+      const usernameHint = $("#username-hint", content);
+      const originalUsername = profile.username;
+      const checkUsername = debounce(async () => {
+        const v = userInput.value.trim();
+        if (!v) { usernameHint.textContent = "Username is required."; usernameHint.className = "hint err"; return; }
+        const r = validateUsername(v);
+        if (!r.ok) { usernameHint.textContent = r.msg; usernameHint.className = "hint err"; return; }
+        if (v.toLowerCase() === originalUsername.toLowerCase()) { usernameHint.textContent = "Available ✓"; usernameHint.className = "hint ok"; return; }
+        usernameHint.textContent = "Checking…"; usernameHint.className = "hint";
+        const taken = await Backend.isUsernameTaken(v);
+        if (taken) { usernameHint.textContent = "Already taken — try another."; usernameHint.className = "hint err"; }
+        else { usernameHint.textContent = "Available ✓"; usernameHint.className = "hint ok"; }
+      }, 350);
+      userInput.addEventListener("input", checkUsername);
+
+      // Save
+      const saveBtn = $("#save-btn", content);
+      $("#cancel-btn", content).onclick = () => navigate("/dashboard");
+      saveBtn.onclick = async () => {
+        const name = $("#f-name", content).value.trim();
+        const username = $("#f-username", content).value.trim();
+        if (!name) { toast("Name is required.", { type: "error" }); return; }
+        const r = validateUsername(username);
+        if (!r.ok) { toast(r.msg, { type: "error" }); return; }
+        if (username.toLowerCase() !== originalUsername.toLowerCase()) {
+          const taken = await Backend.isUsernameTaken(username);
+          if (taken) { toast("Username already taken.", { type: "error" }); return; }
+        }
+        const patch = {
+          name, username,
+          title: $("#f-title", content).value.trim(),
+          company: $("#f-company", content).value.trim(),
+          bio: $("#f-bio", content).value.trim(),
+          whatsapp: $("#f-whatsapp", content).value.trim(),
+          website: $("#f-website", content).value.trim(),
+          location: $("#f-location", content).value.trim(),
+          phoneNumbers: phoneEntries.filter(p => p.number.trim()),
+          customLinks: customEntries.filter(c => c.url.trim() || c.label.trim()),
+          socials: {
+            facebook: $("#f-facebook", content).value.trim(),
+            instagram: $("#f-instagram", content).value.trim(),
+            twitter: $("#f-twitter", content).value.trim(),
+            linkedin: $("#f-linkedin", content).value.trim(),
+            telegram: $("#f-telegram", content).value.trim(),
+            tiktok: $("#f-tiktok", content).value.trim(),
+          },
+        };
+        if (newPhotoDataUrl !== null) patch.photoURL = newPhotoDataUrl;
+
+        const orig = saveBtn.innerHTML;
+        saveBtn.disabled = true; saveBtn.innerHTML = `<span class="spinner"></span> Saving…`;
+        try {
+          if (!originalUsername) {
+            await Backend.createProfile({ ...profile, ...patch, uid: user.uid, email: user.email || "" });
+            toast("Kaytact created!", { type: "success" });
+          } else {
+            await Backend.updateProfile(user.uid, patch);
+            toast("Profile updated.", { type: "success" });
+          }
+          navigate("/dashboard");
+        } catch (err) {
+          toast(err.message || "Couldn't save.", { type: "error" });
+          saveBtn.disabled = false; saveBtn.innerHTML = orig;
+        }
+      };
+
+      updateTopbarState();
+    }
+
+    /* ============= Dashboard: Analytics ============= */
+    async function renderDashboardAnalytics() {
+      const app = $("#app");
+      app.innerHTML = `<div class="page-loading"><div class="stack center gap-3"><div class="spinner lg"></div></div></div>`;
+      const user = await requireAuth();
+      if (!user) return;
+      const profile = await Backend.getProfileByUid(user.uid);
+      if (!profile) { navigate("/dashboard/edit"); return; }
+      const stats = await Backend.getStats(profile.username);
+
+      app.innerHTML = "";
+      const page = el("div", { class: "page" });
+      page.appendChild(renderTopbar());
+      const main = el("main", { class: "dash-page wide-col" });
+
+      const head = el("div", { class: "dash-head" });
+      head.innerHTML = `<div><div class="eyebrow">// analytics</div><h1 style="margin-top: 6px;">Analytics</h1><div class="sub">How people interact with your Kaytact.</div></div><a class="btn btn-ghost btn-sm" href="/dashboard">Back</a>`;
+      main.appendChild(head);
+
+      const grid = el("div", { class: "dash-grid" });
+      const side = el("aside", { class: "dash-side" });
+      [
+        { href: "/dashboard", label: "Overview", icon: ICONS.home },
+        { href: "/dashboard/edit", label: "Edit profile", icon: ICONS.edit },
+        { href: "/dashboard/analytics", label: "Analytics", icon: ICONS.chart, active: true },
+        { href: "/dashboard/qr", label: "QR code", icon: ICONS.qr },
+      ].forEach((it) => {
+        const a = el("a", { href: it.href, class: it.active ? "active" : "" });
+        a.innerHTML = `${it.icon}<span>${it.label}</span>`;
+        a.onclick = (e) => { e.preventDefault(); navigate(it.href); };
+        side.appendChild(a);
+      });
+
+      const content = el("div", { class: "dash-main" });
+
+      const conv = stats.views ? Math.round((stats.contactSaves / stats.views) * 100) : 0;
+      const convCard = el("div", { class: "card conv-card fade-in" });
+      convCard.innerHTML = `
+        <div class="eyebrow-sm" style="margin-bottom: 14px;">// conversion</div>
+        <div class="row gap-6" style="flex-wrap: wrap;">
+          <div><div class="num-big">${conv}%</div><div class="lbl">Save rate</div></div>
+          <div><div class="num-big" style="color: var(--fg);">${(stats.contactSaves + stats.whatsappClicks + stats.phoneClicks + stats.emailClicks).toLocaleString()}</div><div class="lbl">Total actions</div></div>
+        </div>
+        <div class="conv-bar"><div style="width: ${Math.min(100, conv)}%;"></div></div>
+      `;
+      content.appendChild(convCard);
+
+      const grid2 = el("div", { class: "stats-grid fade-in" });
+      [
+        { ico: ICONS.eye, val: stats.views, lbl: "Views" },
+        { ico: ICONS.save, val: stats.contactSaves, lbl: "Saves" },
+        { ico: ICONS.whatsapp, val: stats.whatsappClicks, lbl: "WhatsApp" },
+        { ico: ICONS.phone, val: stats.phoneClicks, lbl: "Calls" },
+        { ico: ICONS.mail, val: stats.emailClicks, lbl: "Emails" },
+        { ico: ICONS.share, val: stats.contactSaves + stats.whatsappClicks + stats.phoneClicks + stats.emailClicks, lbl: "Actions" },
+      ].forEach((c) => {
+        const card = el("div", { class: "stat-card" });
+        card.innerHTML = `<div class="ico">${c.ico}</div><div class="num">${c.val.toLocaleString()}</div><div class="lbl">${c.lbl}</div>`;
+        grid2.appendChild(card);
+      });
+      content.appendChild(grid2);
+
+      const chart = el("div", { class: "card fade-in" });
+      const data = [
+        { label: "Views", value: stats.views, color: "#68E371" },
+        { label: "Saves", value: stats.contactSaves, color: "#68E371" },
+        { label: "WhatsApp", value: stats.whatsappClicks, color: "#25D366" },
+        { label: "Calls", value: stats.phoneClicks, color: "#8F9AA4" },
+        { label: "Emails", value: stats.emailClicks, color: "#FF6B6B" },
+      ];
+      const max = Math.max(...data.map(d => d.value), 1);
+      chart.innerHTML = `
+        <div class="eyebrow-sm" style="margin-bottom: 14px;">// breakdown</div>
+        <div class="breakdown">
+          ${data.map(d => `
+            <div class="breakdown-row">
+              <div class="top"><span class="label">${d.label}</span><span class="value">${d.value.toLocaleString()}</span></div>
+              <div class="breakdown-bar"><div style="width: ${(d.value/max*100).toFixed(1)}%; background: ${d.color};"></div></div>
+            </div>
+          `).join("")}
+        </div>
+      `;
+      content.appendChild(chart);
+
+      grid.append(side, content);
+      main.appendChild(grid);
+      page.appendChild(main);
+      app.appendChild(page);
+      updateTopbarState();
+    }
+
+    /* ============= Dashboard: QR ============= */
+    async function renderDashboardQR() {
+      const app = $("#app");
+      app.innerHTML = `<div class="page-loading"><div class="stack center gap-3"><div class="spinner lg"></div></div></div>`;
+      const user = await requireAuth();
+      if (!user) return;
+      const profile = await Backend.getProfileByUid(user.uid);
+      if (!profile) { navigate("/dashboard/edit"); return; }
+
+      app.innerHTML = "";
+      const page = el("div", { class: "page" });
+      page.appendChild(renderTopbar());
+      const main = el("main", { class: "dash-page wide-col" });
+
+      const head = el("div", { class: "dash-head" });
+      head.innerHTML = `<div><div class="eyebrow">// qr code</div><h1 style="margin-top: 6px;">QR code</h1><div class="sub">Print it. Stick it. Scan it.</div></div><a class="btn btn-ghost btn-sm" href="/dashboard">Back</a>`;
+      main.appendChild(head);
+
+      const grid = el("div", { class: "dash-grid" });
+      const side = el("aside", { class: "dash-side" });
+      [
+        { href: "/dashboard", label: "Overview", icon: ICONS.home },
+        { href: "/dashboard/edit", label: "Edit profile", icon: ICONS.edit },
+        { href: "/dashboard/analytics", label: "Analytics", icon: ICONS.chart },
+        { href: "/dashboard/qr", label: "QR code", icon: ICONS.qr, active: true },
+      ].forEach((it) => {
+        const a = el("a", { href: it.href, class: it.active ? "active" : "" });
+        a.innerHTML = `${it.icon}<span>${it.label}</span>`;
+        a.onclick = (e) => { e.preventDefault(); navigate(it.href); };
+        side.appendChild(a);
+      });
+
+      const content = el("div", { class: "dash-main" });
+      const card = el("div", { class: "card qr-display fade-in" });
+      card.innerHTML = `
+        <div class="eyebrow-sm" style="margin-bottom: 10px;">// your profile qr</div>
+        <div class="url">${escapeHtml(profileUrl(profile.username))}</div>
+        <div id="qr-target" class="qr-target"><div class="spinner"></div></div>
+        <div class="row gap-2" style="justify-content: center; margin-top: 20px; flex-wrap: wrap;">
+          <button class="btn btn-primary" id="dl-png">${ICONS.download} Download PNG</button>
+          <button class="btn btn-ghost" id="copy-qr">${ICONS.copy} Copy link</button>
+        </div>
+      `;
+      content.appendChild(card);
+
+      grid.append(side, content);
+      main.appendChild(grid);
+      page.appendChild(main);
+      app.appendChild(page);
+
+      const qrTarget = $("#qr-target", card);
+      const url = profileUrl(profile.username);
+      let qrDataUrl = null;
+      try {
+        qrDataUrl = await makeQrDataUrl(url, 480);
+        qrTarget.innerHTML = `<img src="${qrDataUrl}" alt="QR for ${escapeHtml(profile.username)}" style="width:100%;height:100%;display:block;" />`;
+      } catch { qrTarget.innerHTML = `<div class="muted small">Couldn't generate QR.</div>`; }
+
+      $("#dl-png", card).onclick = () => {
+        if (!qrDataUrl) return;
+        const a = document.createElement("a");
+        a.href = qrDataUrl; a.download = `kaytact-${profile.username}-qr.png`;
+        document.body.appendChild(a); a.click(); a.remove();
+        toast("QR downloaded.", { type: "success" });
+      };
+      $("#copy-qr", card).onclick = async () => { const ok = await copyToClipboard(url); toast(ok ? "Link copied." : "Couldn't copy.", { type: ok ? "success" : "error" }); };
+
+      updateTopbarState();
+    }
+
+    /* ============= Public Profile ============= */
+    async function renderPublicProfile(username) {
+      const app = $("#app");
+      app.innerHTML = `<div class="page-loading"><div class="stack center gap-3"><div class="spinner lg"></div></div></div>`;
+
+      let profile;
+      try { profile = await Backend.getProfileByUsername(username); }
+      catch (e) {
+        app.innerHTML = "";
+        const page = el("div", { class: "page" });
+        page.appendChild(renderTopbar());
+        const main = el("main", { class: "center-col", style: { padding: "60px 0" } });
+        main.innerHTML = `<div class="card"><div class="empty"><div class="ico">${ICONS.x}</div><h3>Couldn't load this profile</h3><p>${escapeHtml(e.message || "Unknown error")}</p><a class="btn btn-primary" href="/" style="margin-top: 16px;">Go home</a></div></div>`;
+        page.appendChild(main);
+        app.appendChild(page);
+        return;
+      }
+
+      if (!profile) {
+        app.innerHTML = "";
+        const page = el("div", { class: "page" });
+        page.appendChild(renderTopbar());
+        const main = el("main", { class: "center-col", style: { padding: "60px 0" } });
+        main.innerHTML = `
+          <div class="card fade-in">
+            <div class="empty">
+              <div class="ico">${ICONS.user}</div>
+              <h3>No Kaytact at <span class="mono primary-text">${escapeHtml(username)}</span></h3>
+              <p>This username isn't claimed yet.</p>
+              <div class="row gap-2" style="justify-content: center; margin-top: 16px;">
+                <a class="btn btn-primary" href="/signup">Claim it</a>
+                <a class="btn btn-ghost" href="/">Go home</a>
+              </div>
+            </div>
+          </div>
+        `;
+        page.appendChild(main);
+        app.appendChild(page);
+        updateTopbarState();
+        return;
+      }
+
+      if (profile.disabled) {
+        app.innerHTML = "";
+        const page = el("div", { class: "page" });
+        page.appendChild(renderTopbar());
+        const main = el("main", { class: "center-col", style: { padding: "60px 0" } });
+        main.innerHTML = `<div class="card"><div class="empty"><div class="ico">${ICONS.lock}</div><h3>This Kaytact is paused</h3><p>The owner has temporarily disabled this profile.</p></div></div>`;
+        page.appendChild(main);
+        app.appendChild(page);
+        updateTopbarState();
+        return;
+      }
+
+      Backend.incrementStat(profile.username, "view").catch(() => {});
+
+      document.title = `${profile.name} — Kaytact`;
+      setMeta("description", `${profile.name}${profile.title ? " — " + profile.title : ""}. Save their contact on Kaytact.`);
+      setMeta("og:title", `${profile.name} — Kaytact`);
+      setMeta("og:description", profile.bio || `Save ${profile.name}'s contact on Kaytact.`);
+      setMeta("og:url", profileUrl(profile.username));
+      setMeta("twitter:title", `${profile.name} — Kaytact`);
+      setMeta("twitter:description", profile.bio || `Save ${profile.name}'s contact on Kaytact.`);
+      if (profile.photoURL) { setMeta("og:image", profile.photoURL); setMeta("twitter:image", profile.photoURL); }
+
+      app.innerHTML = "";
+      const page = el("div", { class: "page" });
+      page.appendChild(renderTopbar());
+
+      const wrap = el("div", { class: "pc fade-in" });
+      const cardWrap = el("div", { class: "pc-card" });
+      const card = el("div", { class: "pc-inner" });
+
+      const banner = el("div", { class: "pc-banner" });
+      const body = el("div", { class: "pc-body" });
+
+      const avatar = el("div", { class: "pc-avatar" });
+      if (profile.photoURL) avatar.innerHTML = `<img src="${escapeHtml(profile.photoURL)}" alt="${escapeHtml(profile.name)}" />`;
+      else avatar.textContent = (profile.name || profile.username).slice(0, 2).toUpperCase();
+      body.appendChild(avatar);
+
+      body.innerHTML += `
+        <div class="pc-name">${escapeHtml(profile.name)}</div>
+        ${profile.title ? `<div class="pc-role">${escapeHtml(profile.title)}</div>` : ""}
+        ${profile.company ? `<div class="pc-company">// ${escapeHtml(profile.company)}</div>` : ""}
+        ${profile.bio ? `<div class="pc-bio">${escapeHtml(profile.bio)}</div>` : ""}
+        ${profile.location ? `<div class="pc-location">${ICONS.mapPin}<span>${escapeHtml(profile.location)}</span></div>` : ""}
+      `;
+
+      // Save contact (primary)
+      const saveBtn = el("button", { class: "btn btn-primary btn-block btn-lg", id: "save-contact-btn", style: { marginTop: "16px" } });
+      saveBtn.innerHTML = `${ICONS.save} Save contact`;
+      body.appendChild(saveBtn);
+      saveBtn.onclick = async () => {
+        downloadVCard(profile);
+        Backend.incrementStat(profile.username, "contactSave").catch(() => {});
+        toast("Contact card ready — add it to your contacts.", { type: "success", title: "Saved ✓", duration: 5000 });
+      };
+
+      // Action row
+      const wa = whatsappUrl(profile), tel = telUrl(profile), mail = mailtoUrl(profile);
+      if (wa || tel || mail) {
+        const row = el("div", { class: "pc-actions-row", style: { marginTop: "8px" } });
+        row.innerHTML = `
+          ${wa ? `<a class="pc-action" href="${escapeHtml(wa)}" target="_blank" rel="noopener" data-track="whatsappClick">${ICONS.whatsapp}<span>WhatsApp</span></a>` : ""}
+          ${tel ? `<a class="pc-action" href="${escapeHtml(tel)}" data-track="phoneClick">${ICONS.phone}<span>Call</span></a>` : ""}
+          ${mail ? `<a class="pc-action" href="${escapeHtml(mail)}" data-track="emailClick">${ICONS.mail}<span>Email</span></a>` : ""}
+        `;
+        body.appendChild(row);
+        $$("[data-track]", row).forEach((a) => a.addEventListener("click", () => Backend.incrementStat(profile.username, a.dataset.track).catch(() => {})));
+      }
+
+      // QR
+      const qrWrap = el("div", { class: "pc-qr-wrap" });
+      const qrTarget = el("div", { class: "pc-qr" });
+      qrTarget.innerHTML = `<div class="spinner"></div>`;
+      const qrLbl = el("div", { class: "pc-qr-lbl" }, "scan to open");
+      qrWrap.append(qrTarget, qrLbl);
+      body.appendChild(qrWrap);
+      makeQrCanvas(profileUrl(profile.username), 200).then((canvas) => {
+        if (canvas) { qrTarget.innerHTML = ""; qrTarget.appendChild(canvas); }
+        else qrTarget.innerHTML = `<div class="tiny muted">QR unavailable</div>`;
+      });
+
+      // Socials
+      const socials = [];
+      if (profile.socials?.facebook) socials.push(["Facebook", profile.socials.facebook, ICONS.facebook]);
+      if (profile.socials?.instagram) socials.push(["Instagram", profile.socials.instagram, ICONS.instagram]);
+      if (profile.socials?.twitter) socials.push(["X", profile.socials.twitter, ICONS.twitter]);
+      if (profile.socials?.linkedin) socials.push(["LinkedIn", profile.socials.linkedin, ICONS.linkedin]);
+      if (profile.socials?.telegram) socials.push(["Telegram", profile.socials.telegram, ICONS.telegram]);
+      if (profile.socials?.tiktok) socials.push(["TikTok", profile.socials.tiktok, ICONS.tiktok]);
+      if (socials.length || profile.website || (profile.customLinks || []).filter(c => c.url).length) {
+        body.appendChild(el("div", { class: "pc-divider" }));
+      }
+      if (socials.length) {
+        const t = el("div", { class: "pc-section-title" }, "// socials");
+        body.appendChild(t);
+        const sc = el("div", { class: "pc-socials" });
+        socials.forEach(([label, url, ico]) => {
+          const a = el("a", { class: "pc-social", href: url, target: "_blank", rel: "noopener" });
+          a.innerHTML = `${ico}<span>${label}</span>`;
+          sc.appendChild(a);
+        });
+        body.appendChild(sc);
+      }
+
+      // Website
+      if (profile.website) {
+        const t = el("div", { class: "pc-section-title", style: { marginTop: socials.length ? "14px" : "0" } }, "// website");
+        body.appendChild(t);
+        const w = el("a", { class: "pc-link", href: profile.website, target: "_blank", rel: "noopener" });
+        try {
+          const u = new URL(profile.website);
+          w.innerHTML = `<div class="ico">${ICONS.globe}</div><div class="meta"><div class="l">${escapeHtml(u.hostname.replace(/^www\./, ""))}</div><div class="u">${escapeHtml(u.pathname === "/" ? "" : u.pathname)}</div></div><div class="arrow">${ICONS.arrowRight}</div>`;
+        } catch {
+          w.innerHTML = `<div class="ico">${ICONS.globe}</div><div class="meta"><div class="l">${escapeHtml(profile.website)}</div></div>`;
+        }
+        body.appendChild(w);
+      }
+
+      // Custom links
+      const customLinks = (profile.customLinks || []).filter(c => c.url);
+      if (customLinks.length) {
+        if (!profile.website) body.appendChild(el("div", { style: { marginTop: "14px" } }));
+        const t = el("div", { class: "pc-section-title", style: { marginTop: "14px" } }, "// links");
+        body.appendChild(t);
+        const list = el("div", { class: "stack gap-2" });
+        customLinks.forEach((c) => {
+          const a = el("a", { class: "pc-link", href: c.url, target: "_blank", rel: "noopener" });
+          a.innerHTML = `<div class="ico">${ICONS.link}</div><div class="meta"><div class="l">${escapeHtml(c.label || "Link")}</div><div class="u">${escapeHtml(c.url)}</div></div><div class="arrow">${ICONS.arrowRight}</div>`;
+          list.appendChild(a);
+        });
+        body.appendChild(list);
+      }
+
+      // Share
+      body.appendChild(el("div", { class: "pc-divider" }));
+      const shareTitle = el("div", { class: "pc-section-title", style: { textAlign: "center" } }, "// share this kaytact");
+      body.appendChild(shareTitle);
+      const shareUrl = profileUrl(profile.username);
+      const shareRow = el("div", { class: "pc-share" });
+      shareRow.innerHTML = `
+        ${navigator.share ? `<button class="pc-share-btn" id="share-native">${ICONS.share}<span>Share</span></button>` : ""}
+        <a class="pc-share-btn" href="https://wa.me/?text=${encodeURIComponent("Save my contact — " + profile.name + " " + shareUrl)}" target="_blank" rel="noopener">${ICONS.whatsapp}<span>WhatsApp</span></a>
+        <a class="pc-share-btn" href="https://twitter.com/intent/tweet?text=${encodeURIComponent("Save my contact — " + profile.name)}&url=${encodeURIComponent(shareUrl)}" target="_blank" rel="noopener">${ICONS.twitter}<span>X</span></a>
+        <button class="pc-share-btn" id="copy-link">${ICONS.copy}<span>Copy</span></button>
+      `;
+      body.appendChild(shareRow);
+      const sn = $("#share-native", shareRow);
+      if (sn) sn.onclick = async () => { const ok = await nativeShare(profile); if (!ok) { const ok2 = await copyToClipboard(shareUrl); toast(ok2 ? "Link copied." : "Share failed.", { type: ok2 ? "success" : "error" }); } };
+      $("#copy-link", shareRow).onclick = async () => { const ok = await copyToClipboard(shareUrl); toast(ok ? "Link copied." : "Couldn't copy.", { type: ok ? "success" : "error" }); };
+
+      // Promo
+      const promo = el("div", { class: "pc-promo" });
+      promo.innerHTML = `<a href="/signup">get your own kaytact →</a>`;
+      body.appendChild(promo);
+
+      card.append(banner, body);
+      cardWrap.appendChild(card);
+      wrap.appendChild(cardWrap);
+      page.appendChild(wrap);
+      app.appendChild(page);
+      updateTopbarState();
+    }
+
+    /* ============= Admin ============= */
+    async function renderAdmin() {
+      const app = $("#app");
+      app.innerHTML = `<div class="page-loading"><div class="stack center gap-3"><div class="spinner lg"></div></div></div>`;
+      const user = await requireAuth("/login?next=/admin");
+      if (!user) return;
+
+      if (!isAdminEmail(user.email)) {
+        app.innerHTML = "";
+        const page = el("div", { class: "page" });
+        page.appendChild(renderTopbar());
+        const main = el("main", { class: "center-col", style: { padding: "60px 0" } });
+        main.innerHTML = `
+          <div class="card fade-in">
+            <div class="empty">
+              <div class="ico" style="color: var(--red);">${ICONS.lock}</div>
+              <h3>Admins only</h3>
+              <p>Your account doesn't have admin privileges.<br/>Add your email to <span class="mono">window.KAYTACT_ADMIN_EMAILS</span> in <span class="mono">index.html</span>.</p>
+              <a class="btn btn-primary" href="/dashboard" style="margin-top: 16px;">Back to dashboard</a>
+            </div>
+          </div>
+        `;
+        page.appendChild(main);
+        app.appendChild(page);
+        updateTopbarState();
+        return;
+      }
+
+      const [profiles, statsList] = await Promise.all([Backend.listAllProfiles(), Backend.listAllStats()]);
+      const statsMap = Object.fromEntries(statsList.map(s => [s.username, s.stats]));
+
+      app.innerHTML = "";
+      const page = el("div", { class: "page" });
+      page.appendChild(renderTopbar());
+      const main = el("main", { class: "dash-page wide-col" });
+
+      const head = el("div", { class: "dash-head" });
+      head.innerHTML = `<div><div class="eyebrow">// admin</div><h1 style="margin-top: 6px;">Admin</h1><div class="sub">${profiles.length} users · platform overview</div></div><span class="badge primary">${ICONS.shield} admin</span>`;
+      main.appendChild(head);
+
+      const totals = profiles.reduce((acc, p) => {
+        const s = statsMap[p.username] || EMPTY_STATS;
+        acc.views += s.views; acc.saves += s.contactSaves; acc.wa += s.whatsappClicks; acc.calls += s.phoneClicks; acc.emails += s.emailClicks;
+        return acc;
+      }, { views: 0, saves: 0, wa: 0, calls: 0, emails: 0 });
+
+      const stats = el("div", { class: "admin-stats" });
+      [
+        { ico: ICONS.user, val: profiles.length, lbl: "Users" },
+        { ico: ICONS.eye, val: totals.views, lbl: "Views" },
+        { ico: ICONS.save, val: totals.saves, lbl: "Saves" },
+        { ico: ICONS.whatsapp, val: totals.wa, lbl: "WhatsApp" },
+        { ico: ICONS.phone, val: totals.calls, lbl: "Calls" },
+        { ico: ICONS.mail, val: totals.emails, lbl: "Emails" },
+      ].forEach((c) => {
+        const card = el("div", { class: "stat-card" });
+        card.innerHTML = `<div class="ico">${c.ico}</div><div class="num">${c.val.toLocaleString()}</div><div class="lbl">${c.lbl}</div>`;
+        stats.appendChild(card);
+      });
+      main.appendChild(stats);
+
+      const table = el("div", { class: "card fade-in" });
+      table.innerHTML = `
+        <div class="eyebrow-sm" style="margin-bottom: 12px;">// users</div>
+        <div class="row between" style="margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+          <input id="search" class="input" style="max-width: 280px;" placeholder="Search name, username, email…" />
+        </div>
+        <div class="table-wrap">
+          <table class="data">
+            <thead><tr><th>User</th><th>Username</th><th>Stats</th><th>Created</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+      `;
+      const tbody = table.querySelector("#rows");
+      function renderRows(list) {
+        tbody.innerHTML = "";
+        if (!list.length) { tbody.innerHTML = `<tr><td colspan="6" class="muted small" style="text-align: center; padding: 24px;">No users found.</td></tr>`; return; }
+        list.forEach((p) => {
+          const s = statsMap[p.username] || EMPTY_STATS;
+          const initials = (p.name || p.username).slice(0, 2).toUpperCase();
+          const tr = el("tr", {});
+          tr.innerHTML = `
+            <td>
+              <div class="row gap-2">
+                <div class="user-avatar">${p.photoURL ? `<img src="${escapeHtml(p.photoURL)}" alt="" />` : escapeHtml(initials)}</div>
+                <div><div style="font-weight: 500;">${escapeHtml(p.name || "—")}</div><div class="tiny muted">${escapeHtml(p.email || "—")}</div></div>
+              </div>
+            </td>
+            <td><a class="mono primary-text" href="/${escapeHtml(p.username)}">/${escapeHtml(p.username)}</a></td>
+            <td class="small muted">${s.views}v · ${s.contactSaves}s</td>
+            <td class="small muted">${new Date(p.createdAt || Date.now()).toLocaleDateString()}</td>
+            <td>${p.disabled ? `<span class="badge red">Disabled</span>` : `<span class="badge primary">Live</span>`}</td>
+            <td>
+              <div class="row gap-1">
+                <button class="btn btn-ghost btn-sm" data-action="toggle" data-uid="${p.uid}" data-disabled="${p.disabled ? "1" : "0"}">${p.disabled ? "Enable" : "Disable"}</button>
+                <button class="btn btn-ghost btn-sm" data-action="rename" data-uid="${p.uid}" data-username="${escapeHtml(p.username)}">Rename</button>
+              </div>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+        $$("[data-action]", tbody).forEach((btn) => {
+          btn.onclick = async () => {
+            const uid = btn.dataset.uid, action = btn.dataset.action;
+            if (action === "toggle") {
+              const cur = btn.dataset.disabled === "1";
+              if (!confirm(cur ? "Enable this user?" : "Disable this user?")) return;
+              try { await Backend.setProfileDisabled(uid, !cur); toast(`User ${cur ? "enabled" : "disabled"}.`, { type: "success" }); renderAdmin(); }
+              catch (e) { toast(e.message, { type: "error" }); }
+            } else if (action === "rename") {
+              const cur = btn.dataset.username;
+              const next = prompt("New username:", cur);
+              if (!next || next === cur) return;
+              const r = validateUsername(next);
+              if (!r.ok) { toast(r.msg, { type: "error" }); return; }
+              try { await Backend.adminChangeUsername(uid, next); toast("Username updated.", { type: "success" }); renderAdmin(); }
+              catch (e) { toast(e.message, { type: "error" }); }
+            }
+          };
+        });
+      }
+      renderRows(profiles);
+
+      const search = table.querySelector("#search");
+      search.addEventListener("input", debounce(() => {
+        const q = search.value.trim().toLowerCase();
+        if (!q) return renderRows(profiles);
+        renderRows(profiles.filter(p =>
+          (p.name || "").toLowerCase().includes(q) ||
+          (p.username || "").toLowerCase().includes(q) ||
+          (p.email || "").toLowerCase().includes(q)
+        ));
+      }, 200));
+
+      main.appendChild(table);
+      page.appendChild(main);
+      app.appendChild(page);
+      updateTopbarState();
+    }
+
+    /* ============= Boot ============= */
+    // Probe Firebase connectivity first. If unreachable, fall back to demo mode.
+    (async () => {
+      if (FIREBASE_CONFIG_PRESENT) {
+        const ok = await probeFirebase();
+        if (!ok) {
+          FIREBASE_ENABLED = false;
+          fbAuth = null;
+          fbDb = null;
+          // Seed demo data so the app is explorable
+          DEMO.seed();
+        }
+      }
+      // Wire auth listener AFTER the probe so demo mode is correctly detected
+      // when Firebase is unreachable.
+      Backend.onAuthChange((u) => {
+        state.user = u;
+        state.authReady = true;
+        const { path } = getRoute();
+        if (path.startsWith("/dashboard") || path === "/admin") {
+          if (!u && path !== "/login" && path !== "/signup") {
+            navigate("/login?next=" + encodeURIComponent(path));
+            return;
+          }
+        }
+        updateTopbarState();
+      });
+      router();
+    })();
+
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("/sw.js").catch(() => {});
+      });
+    }
+    window.navigate = navigate;
+    window.toast = toast;
+  </script>
+</body>
+</html>
