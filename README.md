@@ -50,14 +50,25 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // Helper: is the current user a platform admin?
+    // Checks if there's a doc at admins/{uid} matching their auth UID.
+    function isAdmin() {
+      return request.auth != null
+             && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
     // ===== KAYTACT PERSONAL PROFILES =====
     match /profiles/{uid} {
-      allow read: if resource.data.disabled == false || request.auth.uid == uid;
+      // Public can read non-disabled profiles. Owner can read their own.
+      // Admins can read ALL profiles (for the /admin panel).
+      allow read: if resource.data.disabled == false
+                  || request.auth.uid == uid
+                  || isAdmin();
       allow create: if request.auth != null && request.auth.uid == uid
                     && request.resource.data.uid == uid;
       allow update: if request.auth.uid == uid
                     && request.resource.data.uid == resource.data.uid;
-      allow delete: if false;
+      allow delete: if isAdmin();
     }
 
     match /usernames/{username} {
@@ -93,13 +104,14 @@ service cloud.firestore {
       allow update, delete: if request.auth != null && request.auth.uid == adminId;
     }
 
-    // ===== PLATFORM ADMINS (invite-code system) =====
-    // Any signed-in user can read the admins list (so the app can check if
-    // they're an admin). Only signed-in users can create their own admin
-    // entry (the app checks the invite code before adding).
-    match /admins/{email} {
+    // ===== PLATFORM ADMINS =====
+    // Doc ID = the admin's Firebase Auth UID.
+    // Any signed-in user can read (so the app can check isAdmin()).
+    // Any signed-in user can create their own entry (the app checks the
+    // invite code before calling addFirestoreAdmin).
+    match /admins/{uid} {
       allow read: if request.auth != null;
-      allow create: if request.auth != null;
+      allow create: if request.auth != null && request.auth.uid == uid;
       allow update, delete: if false;
     }
 

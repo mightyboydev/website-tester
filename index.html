@@ -19,15 +19,15 @@
   <meta name="twitter:title" content="Kaytact — Your contact. One tap away." />
   <meta name="twitter:description" content="Create your digital contact card and let anyone save your details instantly." />
 
-  <link rel="manifest" href="manifest.json" />
-  <link rel="icon" type="image/svg+xml" href="icon.svg" />
-  <link rel="apple-touch-icon" href="icon-192.png" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <link rel="apple-touch-icon" href="/icon-192.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
 
   <!-- QR code library (vendored locally) -->
-  <script src="qr-lib.js"></script>
+  <script src="/qr-lib.js"></script>
 
   <style>
     /* ===== Kaytact Design System — hacker-lime ===== */
@@ -742,19 +742,24 @@
     let _firestoreAdminsLoading = null;
 
     async function loadFirestoreAdmins() {
-      // Returns a Set of lowercased admin emails from Firestore `admins` collection.
-      // These are admins who signed up via /admin/signup with the invite code.
+      // Returns a Set of admin UIDs from Firestore `admins` collection.
+      // Doc ID = the admin's Firebase Auth UID.
       if (_cachedFirestoreAdmins) return _cachedFirestoreAdmins;
       if (_firestoreAdminsLoading) return _firestoreAdminsLoading;
       _firestoreAdminsLoading = (async () => {
         if (!FIREBASE_ENABLED || !fbDb) return new Set();
         try {
           const snap = await getDocs(collection(fbDb, "admins"));
-          const set = new Set(snap.docs.map(d => d.id.toLowerCase()));
+          // Map: uid → email (so we can check by either)
+          const set = new Set();
+          for (const d of snap.docs) {
+            const data = d.data();
+            set.add(d.id); // UID
+            if (data.email) set.add(data.email.toLowerCase()); // also email
+          }
           _cachedFirestoreAdmins = set;
           return set;
         } catch (e) {
-          // If rules block it (e.g. not published yet), just return empty set
           console.warn("[kaytact] Couldn't load Firestore admins:", e.message);
           _cachedFirestoreAdmins = new Set();
           return _cachedFirestoreAdmins;
@@ -766,19 +771,33 @@
     async function isAdminEmailAsync(email) {
       if (!email) return false;
       const e = email.toLowerCase();
-      // Check env var list first (sync)
+      // Check env var list first (sync) — these are hardcoded platform owners
       if (getAdminEmails().includes(e)) return true;
       // Then check Firestore admins collection (async, cached)
+      // The set contains both UIDs and emails
       const set = await loadFirestoreAdmins();
       return set.has(e);
     }
 
+    async function isAdminUidAsync(uid) {
+      if (!uid) return false;
+      // Check env var list first (by looking up current user's email)
+      if (state.user && getAdminEmails().includes((state.user.email || "").toLowerCase())) return true;
+      // Then check Firestore admins collection
+      const set = await loadFirestoreAdmins();
+      return set.has(uid);
+    }
+
     async function addFirestoreAdmin(email) {
       // Called when someone signs up via /admin/signup with the correct invite code.
+      // Uses the user's UID as the doc ID so Firestore rules can check
+      // exists(/admins/$(request.auth.uid)).
       if (!FIREBASE_ENABLED || !fbDb) throw new Error("Database unavailable");
-      const e = email.toLowerCase();
-      await setDoc(doc(fbDb, "admins", e), {
-        email: e,
+      if (!state.user) throw new Error("Must be signed in");
+      const uid = state.user.uid;
+      await setDoc(doc(fbDb, "admins", uid), {
+        email: email.toLowerCase(),
+        uid,
         createdAt: Date.now(),
       });
       // Invalidate cache so the next check picks it up
@@ -1383,8 +1402,9 @@
       const normalizedPath = (path === "/kaytact-app.html" || path === "/index.html") ? "/" : path;
 
       if (normalizedPath === "/" || normalizedPath === "") return renderLanding();
-      if (normalizedPath === "/login") return renderAuth("login");
-      if (normalizedPath === "/signup") return renderAuth("signup");
+      // /login and /signup redirect to /admin/login — members can't create accounts
+      if (normalizedPath === "/login") return navigate("/admin/login");
+      if (normalizedPath === "/signup") return navigate("/admin/signup");
       if (normalizedPath === "/forgot-password") return renderAuth("forgot");
       if (normalizedPath === "/dashboard") return renderDashboard();
       if (normalizedPath === "/dashboard/edit") return renderDashboardEdit();
@@ -1706,11 +1726,10 @@
             navigate("/");
           });
           slot.appendChild(logoutBtn);
-        } else {
-          const login = el("a", { href: "/login" }, "login");
-          const signup = el("a", { href: "/signup" }, "sign up");
-          slot.append(login, signup);
         }
+        // If NOT logged in: show NOTHING in the topbar.
+        // Members/visitors don't get login/signup links.
+        // Admin access is via triple-clicking the logo → /admin/login.
       });
     }
 
@@ -2820,7 +2839,32 @@
         return;
       }
 
-      const [profiles, statsList] = await Promise.all([Backend.listAllProfiles(), Backend.listAllStats()]);
+      let profiles = [], statsList = [];
+      try {
+        [profiles, statsList] = await Promise.all([Backend.listAllProfiles(), Backend.listAllStats()]);
+      } catch (err) {
+        // Permission denied or network error — show error state instead of loading forever
+        app.innerHTML = "";
+        const page = el("div", { class: "page" });
+        page.appendChild(renderTopbar());
+        const main = el("main", { class: "center-col", style: { padding: "60px 0" } });
+        main.innerHTML = `
+          <div class="card fade-in">
+            <div class="empty">
+              <div class="ico" style="color: var(--red);">${ICONS.shield}</div>
+              <h3>Couldn't load admin data</h3>
+              <p>${escapeHtml(err.message || "Permission denied")}</p>
+              <p class="tiny muted" style="margin-top: 12px;">Make sure the Firestore rules are published (see README.md).</p>
+              <button class="btn btn-ghost" id="admin-retry" style="margin-top: 16px;">Try again</button>
+            </div>
+          </div>
+        `;
+        page.appendChild(main);
+        app.appendChild(page);
+        $("#admin-retry", main).onclick = () => renderAdmin();
+        updateTopbarState();
+        return;
+      }
       const statsMap = Object.fromEntries(statsList.map(s => [s.username, s.stats]));
 
       app.innerHTML = "";
