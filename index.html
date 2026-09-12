@@ -1768,87 +1768,118 @@
       const page = el("div", { class: "page" });
       page.appendChild(renderTopbar());
 
-      const main = el("main", { class: "landing center-col" });
+      const main = el("main", { class: "center-col", style: { padding: "32px 0 48px" } });
 
-      const head = el("div", { class: "landing-head fade-in" });
+      // Header — matches reference: "// contacts" + "by Kaytact"
+      const head = el("div", { class: "fade-in", style: { textAlign: "center", marginBottom: "28px" } });
       head.innerHTML = `
         <div class="eyebrow">// contacts</div>
-        <h1>Your contact.<br/><span class="primary-text">One tap away.</span></h1>
-        <p class="sub">Create your digital contact card and let anyone save your details instantly.</p>
+        <h1 style="margin-top: 12px;">by <span class="primary-text">Kaytact</span></h1>
+        <p class="muted small" style="margin-top: 12px;">Drop your details. You'll be saved in the book.</p>
       `;
       main.appendChild(head);
 
-      // Primary card — quick actions
+      // Primary form card — "Save my contact"
       const card = el("div", { class: "card fade-in" });
-      card.innerHTML = `
-        <div class="eyebrow-sm" style="margin-bottom: 14px;">// get started</div>
-        <div class="landing-actions">
-          <a class="btn btn-primary btn-block btn-lg" href="/signup">Create your Kaytact <span style="display:inline-flex;">${ICONS.arrowRight}</span></a>
-          <a class="btn btn-ghost btn-block" href="/awwal">View a live example</a>
+      const form = el("form", { class: "stack gap-4" });
+
+      // Country codes (African + international)
+      const countryCodes = [
+        { code: "+234", label: "🇳🇬 Nigeria" },
+        { code: "+233", label: "🇬🇭 Ghana" },
+        { code: "+225", label: "🇨🇮 Côte d'Ivoire" },
+        { code: "+221", label: "🇸🇳 Senegal" },
+        { code: "+254", label: "🇰🇪 Kenya" },
+        { code: "+256", label: "🇺🇬 Uganda" },
+        { code: "+255", label: "🇹🇿 Tanzania" },
+        { code: "+260", label: "🇿🇲 Zambia" },
+        { code: "+263", label: "🇿🇼 Zimbabwe" },
+        { code: "+27", label: "🇿🇦 South Africa" },
+        { code: "+1", label: "🇺🇸 USA / Canada" },
+        { code: "+44", label: "🇬🇧 UK" },
+      ];
+
+      form.innerHTML = `
+        <div class="edit-row two">
+          <div class="field">
+            <label>First name / Nickname *</label>
+            <input id="h-firstname" class="input" required placeholder="e.g. Alex" autocomplete="given-name" />
+          </div>
+          <div class="field">
+            <label>Last name <span class="muted-2 tiny">(optional)</span></label>
+            <input id="h-lastname" class="input" placeholder="e.g. Mercer" autocomplete="family-name" />
+          </div>
         </div>
-        <div class="landing-or">or sign in</div>
-        <a class="btn btn-ghost btn-block btn-sm" href="/login">I already have a Kaytact</a>
+        <div class="field">
+          <label>Country *</label>
+          <select id="h-country" class="input select">
+            ${countryCodes.map(c => `<option value="${escapeHtml(c.code)}">${escapeHtml(c.label)} ${escapeHtml(c.code)}</option>`).join("")}
+          </select>
+        </div>
+        <div class="field">
+          <label>Phone number *</label>
+          <div class="country-select">
+            <input id="h-cc" class="input cc-input" value="+234" placeholder="+234" />
+            <input id="h-phone" class="input phone-input" required type="tel" placeholder="e.g. 8012345678" autocomplete="tel-national" />
+          </div>
+          <div class="hint" id="h-phone-hint">Saved as: <span class="mono">+234...</span></div>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block btn-lg">Save my contact</button>
       `;
+      card.appendChild(form);
       main.appendChild(card);
 
-      // Features mini-card
-      const features = el("div", { class: "card-soft fade-in", style: { marginTop: "16px" } });
-      features.innerHTML = `
-        <div class="eyebrow-sm" style="margin-bottom: 12px;">// why kaytact</div>
-        <div class="mini-features">
-          <div class="mini-feature"><span class="check">${ICONS.check}</span><span><strong>One-tap save.</strong> Generates a real .vcf file that imports into any phone.</span></div>
-          <div class="mini-feature"><span class="check">${ICONS.check}</span><span><strong>One link.</strong> Share kaytact.com/yourname anywhere.</span></div>
-          <div class="mini-feature"><span class="check">${ICONS.check}</span><span><strong>QR built in.</strong> Print it, scan it, save it.</span></div>
-          <div class="mini-feature"><span class="check">${ICONS.check}</span><span><strong>Analytics.</strong> See views, saves, WhatsApp & call clicks.</span></div>
-          <div class="mini-feature"><span class="check">${ICONS.check}</span><span><strong>Mobile-first.</strong> Works on any phone with a browser.</span></div>
-        </div>
-      `;
-      main.appendChild(features);
+      // Live phone preview + country sync
+      const countrySelect = $("#h-country", form);
+      const ccInput = $("#h-cc", form);
+      const phoneInput = $("#h-phone", form);
+      const phoneHint = $("#h-phone-hint", form);
+      const updatePreview = () => {
+        const cc = (ccInput.value || "").replace(/[^\d+]/g, "");
+        const ph = (phoneInput.value || "").replace(/[^\d]/g, "");
+        const full = cc + ph;
+        phoneHint.innerHTML = `Saved as: <span class="mono">${escapeHtml(full || cc + "...")}</span>`;
+      };
+      countrySelect.addEventListener("change", () => { ccInput.value = countrySelect.value; updatePreview(); });
+      ccInput.addEventListener("input", updatePreview);
+      phoneInput.addEventListener("input", updatePreview);
 
-      // How it works mini-card
-      const how = el("div", { class: "card-soft fade-in", style: { marginTop: "16px" } });
-      how.innerHTML = `
-        <div class="eyebrow-sm" style="margin-bottom: 12px;">// how it works</div>
-        <div class="mini-features">
-          <div class="mini-feature"><span class="check">${ICONS.zap}</span><span><strong>1. Create</strong> your card with all your details.</span></div>
-          <div class="mini-feature"><span class="check">${ICONS.share}</span><span><strong>2. Share</strong> your link or QR code anywhere.</span></div>
-          <div class="mini-feature"><span class="check">${ICONS.save}</span><span><strong>3. They tap save</strong> — done, in your contacts.</span></div>
-        </div>
-      `;
-      main.appendChild(how);
+      // Form submit → show success
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const firstName = $("#h-firstname", form).value.trim();
+        const lastName = $("#h-lastname", form).value.trim();
+        const countryCode = $("#h-cc", form).value.trim();
+        const phone = $("#h-phone", form).value.trim();
+        if (!firstName) { toast("First name is required.", { type: "error" }); return; }
+        if (!phone) { toast("Phone number is required.", { type: "error" }); return; }
+        const fullPhone = (countryCode || "").replace(/[^\d+]/g, "") + (phone || "").replace(/[^\d]/g, "");
+        // Show success state
+        card.innerHTML = `
+          <div class="success-state">
+            <div class="check-circle">${ICONS.check}</div>
+            <h3>You're in the book.</h3>
+            <p>Saved as: <span class="mono primary-text">${escapeHtml(fullPhone)}</span></p>
+            <button class="btn btn-ghost" id="h-add-another" style="margin-top: 20px;">Submit another</button>
+          </div>
+        `;
+        $("#h-add-another", card).onclick = () => renderLanding();
+      });
 
-      // Contact Collector section (for WhatsApp group admins)
-      const collector = el("div", { class: "card fade-in", style: { marginTop: "16px" } });
-      collector.innerHTML = `
-        <div class="eyebrow-sm" style="margin-bottom: 10px;">// for whatsapp group admins</div>
-        <h3 style="font-size: 18px; margin-bottom: 8px;">Run a WhatsApp group? Collect contacts like a pro.</h3>
-        <p class="small muted" style="margin-bottom: 14px; line-height: 1.5;">
-          Get your own branded page where members drop their name + number. Download everyone as a .vcf and bulk-import into your phone. One link. No back-and-forth.
-        </p>
-        <div class="mini-features" style="margin-bottom: 16px;">
-          <div class="mini-feature"><span class="check">${ICONS.check}</span><span><strong>Your own URL</strong> — kaytact.app/c/your-group</span></div>
-          <div class="mini-feature"><span class="check">${ICONS.check}</span><span><strong>Members just fill a form</strong> — no login, no app</span></div>
-          <div class="mini-feature"><span class="check">${ICONS.check}</span><span><strong>Download all as .vcf</strong> — bulk-import to your phone</span></div>
-        </div>
-        <a class="btn btn-primary btn-block" href="/collector/signup">Create your collector <span style="display:inline-flex;">${ICONS.arrowRight}</span></a>
-        <a class="btn btn-ghost btn-block btn-sm" href="/c/test-group" style="margin-top: 8px;">See a live example</a>
+      // Secondary card — Contact admin on WhatsApp
+      const waCard = el("div", { class: "card-soft fade-in", style: { marginTop: "16px" } });
+      waCard.innerHTML = `
+        <a class="btn btn-whatsapp btn-block" href="https://wa.me/2348012345678" target="_blank" rel="noopener">
+          ${ICONS.whatsapp} Contact admin on WhatsApp
+        </a>
       `;
-      main.appendChild(collector);
+      main.appendChild(waCard);
 
-      // Final CTA
-      const cta = el("div", { class: "card fade-in", style: { marginTop: "16px", textAlign: "center" } });
-      cta.innerHTML = `
-        <div class="eyebrow-sm" style="margin-bottom: 10px;">// ready?</div>
-        <p class="small muted" style="margin-bottom: 16px;">Stop sending your number manually.<br/>Give them your Kaytact.</p>
-        <a class="btn btn-primary btn-block" href="/signup">Create your free Kaytact</a>
-      `;
-      main.appendChild(cta);
-
-      // Footer
-      const foot = el("div", { class: "landing-foot" });
+      // Footer — admin link
+      const foot = el("div", { class: "fade-in", style: { textAlign: "center", marginTop: "24px" } });
       foot.innerHTML = `
-        <a href="/login">log in</a> &nbsp;·&nbsp; <a href="/awwal">live demo</a> &nbsp;·&nbsp; <a href="/signup">sign up</a> &nbsp;·&nbsp; <a href="/collector">contact collector</a>
-        <div class="tiny muted-2" style="margin-top: 8px;">© ${new Date().getFullYear()} Kaytact</div>
+        <a href="/admin/login" style="font-family: var(--mono); font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; transition: color 0.15s;">admin →</a>
+        <div class="tiny muted-2" style="margin-top: 12px;">© ${new Date().getFullYear()} Kaytact</div>
       `;
       main.appendChild(foot);
 
