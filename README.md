@@ -51,10 +51,12 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // Helper: is the current user a platform admin?
-    // Checks if there's a doc at admins/{uid} matching their auth UID.
+    // Checks if their email is hardcoded OR if they have an admins/{uid} doc.
     function isAdmin() {
-      return request.auth != null
-             && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+      return request.auth != null && (
+        request.auth.token.email == "kaytact@gmail.com"
+        || exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
     }
 
     // ===== KAYTACT PERSONAL PROFILES =====

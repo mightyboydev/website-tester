@@ -2840,30 +2840,13 @@
       }
 
       let profiles = [], statsList = [];
+      let dataError = null;
       try {
         [profiles, statsList] = await Promise.all([Backend.listAllProfiles(), Backend.listAllStats()]);
       } catch (err) {
-        // Permission denied or network error — show error state instead of loading forever
-        app.innerHTML = "";
-        const page = el("div", { class: "page" });
-        page.appendChild(renderTopbar());
-        const main = el("main", { class: "center-col", style: { padding: "60px 0" } });
-        main.innerHTML = `
-          <div class="card fade-in">
-            <div class="empty">
-              <div class="ico" style="color: var(--red);">${ICONS.shield}</div>
-              <h3>Couldn't load admin data</h3>
-              <p>${escapeHtml(err.message || "Permission denied")}</p>
-              <p class="tiny muted" style="margin-top: 12px;">Make sure the Firestore rules are published (see README.md).</p>
-              <button class="btn btn-ghost" id="admin-retry" style="margin-top: 16px;">Try again</button>
-            </div>
-          </div>
-        `;
-        page.appendChild(main);
-        app.appendChild(page);
-        $("#admin-retry", main).onclick = () => renderAdmin();
-        updateTopbarState();
-        return;
+        // Don't block the whole panel — show it with empty data + a warning
+        dataError = err.message || "Permission denied";
+        console.warn("[admin] Couldn't load data:", dataError);
       }
       const statsMap = Object.fromEntries(statsList.map(s => [s.username, s.stats]));
 
@@ -2875,6 +2858,22 @@
       const head = el("div", { class: "dash-head" });
       head.innerHTML = `<div><div class="eyebrow">// admin</div><h1 style="margin-top: 6px;">Admin</h1><div class="sub">${profiles.length} users · platform overview</div></div><span class="badge primary">${ICONS.shield} admin</span>`;
       main.appendChild(head);
+
+      // Show warning if data couldn't be loaded (e.g. Firestore rules not published yet)
+      if (dataError) {
+        const warn = el("div", { class: "card fade-in", style: { marginBottom: "16px", borderLeft: "3px solid var(--red)" } });
+        warn.innerHTML = `
+          <div class="eyebrow-sm" style="color: var(--red); margin-bottom: 6px;">// data load error</div>
+          <p class="small" style="color: var(--fg-2);">${escapeHtml(dataError)}</p>
+          <p class="tiny muted" style="margin-top: 6px;">Publish the Firestore rules from README.md, then click retry.</p>
+          <button class="btn btn-ghost btn-sm" id="admin-retry" style="margin-top: 10px;">Try again</button>
+        `;
+        main.appendChild(warn);
+        setTimeout(() => {
+          const r = $("#admin-retry", main);
+          if (r) r.onclick = () => renderAdmin();
+        }, 0);
+      }
 
       const totals = profiles.reduce((acc, p) => {
         const s = statsMap[p.username] || EMPTY_STATS;
