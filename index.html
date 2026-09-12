@@ -910,6 +910,39 @@
         this.write(this.keys.profiles, profiles);
         this.write(this.keys.usernames, { awwal: uid });
         this.write(this.keys.stats, { awwal: { views: 247, contactSaves: 68, whatsappClicks: 51, phoneClicks: 22, emailClicks: 14 } });
+
+        // Seed a demo Contact Collector tenant so /c/test-group works in demo mode
+        const collectorUid = "u_demo_collector";
+        users["collector@kaytact.app"] = { uid: collectorUid, email: "collector@kaytact.app", password: "password123", emailVerified: true, createdAt: Date.now() - 86400000 };
+        this.write(this.keys.users, users);
+        const slugs = {
+          "test-group": {
+            adminId: collectorUid,
+            businessName: "Test Group",
+            whatsappNumber: "+2348012345678",
+            slug: "test-group",
+            createdAt: Date.now() - 3600000,
+          },
+        };
+        this.write(this.keys.slugs, slugs);
+        const tenants = {
+          [collectorUid]: {
+            profile: {
+              businessName: "Test Group",
+              slug: "test-group",
+              whatsappNumber: "+2348012345678",
+              adminEmail: "collector@kaytact.app",
+              adminId: collectorUid,
+              createdAt: Date.now() - 3600000,
+              updatedAt: Date.now() - 3600000,
+            },
+            contacts: [
+              { id: "c1", firstName: "John", lastName: "Doe", countryCode: "+234", phone: "8012345678", fullPhone: "+2348012345678", createdAt: Date.now() - 1800000 },
+              { id: "c2", firstName: "Jane", lastName: "Smith", countryCode: "+1", phone: "5551234567", fullPhone: "+15551234567", createdAt: Date.now() - 900000 },
+            ],
+          },
+        };
+        this.write(this.keys.tenants, tenants);
       },
       currentUser() {
         const uid = localStorage.getItem(this.keys.session);
@@ -1168,24 +1201,23 @@
         }
       },
 
-      async createTenant({ businessName, slug }) {
+      async createTenant({ businessName, slug, whatsappNumber }) {
         // Requires authenticated user (state.user must be set)
         if (!state.user) throw new Error("Must be signed in to create a tenant.");
         slug = slug.toLowerCase();
         const adminId = state.user.uid;
         if (FIREBASE_ENABLED) {
-          // Create slug → adminId index (public read, owner write)
-          // This will fail with ALREADY_EXISTS if slug is taken.
           await setDoc(doc(fbDb, "slugs", slug), {
             adminId,
             businessName,
+            whatsappNumber: whatsappNumber || "",
             slug,
             createdAt: Date.now(),
           });
-          // Create tenant profile (admin-only read/write)
           await setDoc(doc(fbDb, "tenants", adminId, "profile", "main"), {
             businessName,
             slug,
+            whatsappNumber: whatsappNumber || "",
             adminEmail: state.user.email || "",
             adminId,
             createdAt: Date.now(),
@@ -1194,11 +1226,11 @@
         } else {
           const slugs = DEMO.read(DEMO.keys.slugs, {});
           if (slugs[slug]) throw new Error("Slug already taken");
-          slugs[slug] = { adminId, businessName, slug, createdAt: Date.now() };
+          slugs[slug] = { adminId, businessName, whatsappNumber: whatsappNumber || "", slug, createdAt: Date.now() };
           DEMO.write(DEMO.keys.slugs, slugs);
           const tenants = DEMO.read(DEMO.keys.tenants, {});
           tenants[adminId] = {
-            profile: { businessName, slug, adminEmail: state.user.email || "", adminId, createdAt: Date.now(), updatedAt: Date.now() },
+            profile: { businessName, slug, whatsappNumber: whatsappNumber || "", adminEmail: state.user.email || "", adminId, createdAt: Date.now(), updatedAt: Date.now() },
             contacts: [],
           };
           DEMO.write(DEMO.keys.tenants, tenants);
@@ -1654,33 +1686,25 @@
         slot.innerHTML = "";
         if (state.user) {
           if (userIsAdmin) {
-            // Show ADMIN badge that links to /admin
-            const adminLink = el("a", {
-              href: "/admin",
-              style: {
-                color: "var(--primary) !important",
-                fontWeight: "600 !important",
-                background: "rgba(104,227,113,0.12)",
-                borderRadius: "6px",
-                padding: "6px 10px",
-              },
-            }, `${ICONS.shield} admin`);
+            // Show ADMIN badge (use innerHTML so the SVG icon renders properly)
+            const adminLink = el("a", { href: "/admin" });
+            adminLink.style.cssText = "display:inline-flex;align-items:center;gap:4px;color:var(--primary);font-weight:600;background:rgba(104,227,113,0.12);border-radius:6px;padding:6px 10px;font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:0.1em;";
+            adminLink.innerHTML = ICONS.shield + "<span>admin</span>";
+            adminLink.addEventListener("click", (e) => { e.preventDefault(); navigate("/admin"); });
             slot.appendChild(adminLink);
           } else {
             // Show DASHBOARD link
             const dash = el("a", { href: "/dashboard" }, "dashboard");
             slot.appendChild(dash);
           }
-          // Logout icon
-          const logoutBtn = el("button", {
-            style: { padding: "6px 10px" },
-            title: "Sign out",
-            onclick: async () => {
-              await Backend.signOut();
-              toast("Signed out.", { type: "info" });
-              navigate("/");
-            },
-          }, "logout");
+          // Logout button
+          const logoutBtn = el("button", { title: "Sign out" }, "logout");
+          logoutBtn.style.cssText = "font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:0.1em;color:var(--muted);padding:6px 10px;border-radius:6px;cursor:pointer;";
+          logoutBtn.addEventListener("click", async () => {
+            await Backend.signOut();
+            toast("Signed out.", { type: "info" });
+            navigate("/");
+          });
           slot.appendChild(logoutBtn);
         } else {
           const login = el("a", { href: "/login" }, "login");
@@ -1792,6 +1816,24 @@
         </div>
       `;
       main.appendChild(how);
+
+      // Contact Collector section (for WhatsApp group admins)
+      const collector = el("div", { class: "card fade-in", style: { marginTop: "16px" } });
+      collector.innerHTML = `
+        <div class="eyebrow-sm" style="margin-bottom: 10px;">// for whatsapp group admins</div>
+        <h3 style="font-size: 18px; margin-bottom: 8px;">Run a WhatsApp group? Collect contacts like a pro.</h3>
+        <p class="small muted" style="margin-bottom: 14px; line-height: 1.5;">
+          Get your own branded page where members drop their name + number. Download everyone as a .vcf and bulk-import into your phone. One link. No back-and-forth.
+        </p>
+        <div class="mini-features" style="margin-bottom: 16px;">
+          <div class="mini-feature"><span class="check">${ICONS.check}</span><span><strong>Your own URL</strong> — kaytact.app/c/your-group</span></div>
+          <div class="mini-feature"><span class="check">${ICONS.check}</span><span><strong>Members just fill a form</strong> — no login, no app</span></div>
+          <div class="mini-feature"><span class="check">${ICONS.check}</span><span><strong>Download all as .vcf</strong> — bulk-import to your phone</span></div>
+        </div>
+        <a class="btn btn-primary btn-block" href="/collector/signup">Create your collector <span style="display:inline-flex;">${ICONS.arrowRight}</span></a>
+        <a class="btn btn-ghost btn-block btn-sm" href="/c/test-group" style="margin-top: 8px;">See a live example</a>
+      `;
+      main.appendChild(collector);
 
       // Final CTA
       const cta = el("div", { class: "card fade-in", style: { marginTop: "16px", textAlign: "center" } });
@@ -1920,8 +1962,14 @@
           } else if (mode === "login") {
             await Backend.signIn(email, password);
             toast("Welcome back.", { type: "success" });
-            const next = new URLSearchParams(window.location.search).get("next") || "/dashboard";
-            navigate(next);
+            const next = new URLSearchParams(window.location.search).get("next");
+            if (next) {
+              navigate(next);
+            } else {
+              // Check if admin → redirect to /admin, otherwise /dashboard
+              const ok = await isAdminEmailAsync(email);
+              navigate(ok ? "/admin" : "/dashboard");
+            }
           } else {
             await Backend.resetPassword(email);
             toast("If that email exists, a reset link is on its way.", { type: "success" });
@@ -3067,19 +3115,42 @@
         main.innerHTML = "";
         const head = el("div", { class: "collector-head fade-in" });
         head.innerHTML = `
-          <div class="eyebrow">// contact collector</div>
-          <h1>${escapeHtml(tenant.businessName)}</h1>
-          <p class="sub">Drop your details. You'll be saved in the book.</p>
+          <div class="eyebrow">// contacts</div>
+          <h1 style="margin-top: 12px;">by <span class="primary-text">${escapeHtml(tenant.businessName)}</span></h1>
+          <p class="sub" style="margin-top: 12px;">Drop your details. You'll be saved in the book.</p>
         `;
         main.appendChild(head);
 
         const card = el("div", { class: "card fade-in" });
         const form = el("form", { class: "stack gap-4" });
 
+        // Build country code options (African + international)
+        const countryCodes = [
+          { code: "+234", label: "🇳🇬 Nigeria" },
+          { code: "+233", label: "🇬🇭 Ghana" },
+          { code: "+234", label: "🇳🇬 Nigeria" },
+          { code: "+233", label: "🇬🇭 Ghana" },
+          { code: "+225", label: "🇨🇮 Côte d'Ivoire" },
+          { code: "+221", label: "🇸🇳 Senegal" },
+          { code: "+254", label: "🇰🇪 Kenya" },
+          { code: "+256", label: "🇺🇬 Uganda" },
+          { code: "+255", label: "🇹🇿 Tanzania" },
+          { code: "+260", label: "🇿🇲 Zambia" },
+          { code: "+263", label: "🇿🇼 Zimbabwe" },
+          { code: "+27", label: "🇿🇦 South Africa" },
+          { code: "+234", label: "🇳🇬 Nigeria" },
+          { code: "+1", label: "🇺🇸 USA / Canada" },
+          { code: "+44", label: "🇬🇧 UK" },
+          { code: "+234", label: "🇳🇬 Nigeria" },
+        ];
+        // Dedupe
+        const seen = new Set();
+        const uniqueCodes = countryCodes.filter(c => { if (seen.has(c.code + c.label)) return false; seen.add(c.code + c.label); return true; });
+
         form.innerHTML = `
           <div class="edit-row two">
             <div class="field">
-              <label>First name *</label>
+              <label>First name / Nickname *</label>
               <input id="c-firstname" class="input" required placeholder="e.g. Alex" autocomplete="given-name" />
             </div>
             <div class="field">
@@ -3088,19 +3159,39 @@
             </div>
           </div>
           <div class="field">
+            <label>Country *</label>
+            <select id="c-country" class="input select">
+              ${uniqueCodes.map(c => `<option value="${escapeHtml(c.code)}">${escapeHtml(c.label)} ${escapeHtml(c.code)}</option>`).join("")}
+            </select>
+          </div>
+          <div class="field">
             <label>Phone number *</label>
             <div class="country-select">
               <input id="c-cc" class="input cc-input" value="+234" placeholder="+234" />
-              <input id="c-phone" class="input phone-input" required type="tel" placeholder="801 234 5678" autocomplete="tel-national" />
+              <input id="c-phone" class="input phone-input" required type="tel" placeholder="e.g. 8012345678" autocomplete="tel-national" />
             </div>
             <div class="hint" id="c-phone-hint">Saved as: <span class="mono">+234...</span></div>
           </div>
-          <button type="submit" class="btn btn-primary btn-block btn-lg" id="c-submit">Submit my contact</button>
+          <button type="submit" class="btn btn-primary btn-block btn-lg" id="c-submit">Save my contact</button>
         `;
         card.appendChild(form);
         main.appendChild(card);
 
-        // Live phone preview
+        // Contact admin on WhatsApp button (if admin has a WhatsApp number)
+        if (tenant.whatsappNumber) {
+          const waNum = tenant.whatsappNumber.replace(/[^\d]/g, "");
+          const waCard = el("div", { class: "card-soft fade-in", style: { marginTop: "16px", textAlign: "center" } });
+          waCard.innerHTML = `
+            <div class="eyebrow-sm" style="margin-bottom: 10px;">// need help?</div>
+            <a class="btn btn-whatsapp btn-block" href="https://wa.me/${escapeHtml(waNum)}" target="_blank" rel="noopener">
+              ${ICONS.whatsapp} Contact admin on WhatsApp
+            </a>
+          `;
+          main.appendChild(waCard);
+        }
+
+        // Live phone preview + country selector sync
+        const countrySelect = $("#c-country", form);
         const ccInput = $("#c-cc", form);
         const phoneInput = $("#c-phone", form);
         const phoneHint = $("#c-phone-hint", form);
@@ -3110,6 +3201,10 @@
           const full = cc + ph;
           phoneHint.innerHTML = `Saved as: <span class="mono">${escapeHtml(full || cc + "...")}</span>`;
         };
+        countrySelect.addEventListener("change", () => {
+          ccInput.value = countrySelect.value;
+          updatePreview();
+        });
         ccInput.addEventListener("input", updatePreview);
         phoneInput.addEventListener("input", updatePreview);
 
@@ -3199,6 +3294,11 @@
           <input id="cs-business" required class="input" placeholder="e.g. Awwal's WhatsApp Group" />
         </div>
         <div class="field">
+          <label>Your WhatsApp number <span class="muted-2 tiny">(for the "Contact admin" button)</span></label>
+          <input id="cs-whatsapp" class="input" placeholder="+234 801 234 5678" type="tel" />
+          <div class="hint">Members see a "Contact admin on WhatsApp" button on your page.</div>
+        </div>
+        <div class="field">
           <label>Your collector slug</label>
           <div class="input-prefix">
             <span class="prefix">${siteUrl().replace(/^https?:\/\//, "")}/c/</span>
@@ -3243,6 +3343,7 @@
         const password = $("#cs-password", form).value;
         const confirm = $("#cs-confirm", form).value;
         const businessName = $("#cs-business", form).value.trim();
+        const whatsappNumber = ($("#cs-whatsapp", form)?.value || "").trim();
         const slug = $("#cs-slug", form).value.trim();
         if (password !== confirm) { toast("Passwords do not match.", { type: "error" }); return; }
         if (!businessName) { toast("Business name is required.", { type: "error" }); return; }
@@ -3258,7 +3359,7 @@
           // 1. Sign up
           await Backend.signUp(email, password);
           // 2. Create tenant
-          await Backend.createTenant({ businessName, slug });
+          await Backend.createTenant({ businessName, slug, whatsappNumber });
           toast("Collector created! Your page is live.", { type: "success", title: "All set" });
           navigate("/collector");
         } catch (err) {
@@ -3545,14 +3646,17 @@
           }
           return;
         }
-        // If logged in and on an auth page, redirect to dashboard
+        // If logged in and on an auth page, redirect appropriately
         if (u && isAuthPage && !path.startsWith("/admin/signup")) {
-          // Don't auto-redirect from admin/login if they're already an admin
-          // (they might want to log in as a different account)
           if (path === "/admin/login") {
             // Check if they're already an admin — if so, send to /admin
             isAdminEmailAsync(u.email).then((ok) => {
               if (ok) navigate("/admin");
+            });
+          } else if (path === "/login" || path === "/signup") {
+            // Regular login/signup → check if admin, redirect accordingly
+            isAdminEmailAsync(u.email).then((ok) => {
+              navigate(ok ? "/admin" : "/dashboard");
             });
           } else {
             navigate("/dashboard");
