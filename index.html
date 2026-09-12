@@ -679,8 +679,14 @@
 
   <!-- ====== Optional config (runs before module) ====== -->
   <script>
-    // Admin emails (comma-separated). Replace with your real admin email(s).
+    // Platform owner emails (comma-separated). These users get /admin access.
     window.KAYTACT_ADMIN_EMAILS = window.KAYTACT_ADMIN_EMAILS || "kaytact@gmail.com";
+
+    // Invite code for new admins. Anyone who knows this code can sign up
+    // at /admin/signup and become a platform admin. Change this to something
+    // only you and your trusted people know.
+    window.KAYTACT_ADMIN_INVITE_CODE = window.KAYTACT_ADMIN_INVITE_CODE || "kaytact2026";
+
     // Optional: override the public site URL (used for QR codes + sharing).
     // window.KAYTACT_SITE_URL = "https://kaytact.com";
   </script>
@@ -725,6 +731,58 @@
     function getAdminEmails() {
       const raw = window.KAYTACT_ADMIN_EMAILS || "you@example.com";
       return raw.split(",").map(s => s.trim().toLowerCase()).filter(Boolean);
+    }
+
+    function getInviteCode() {
+      return window.KAYTACT_ADMIN_INVITE_CODE || "kaytact2026";
+    }
+
+    // Cache of admin emails from Firestore (so we don't re-fetch every time)
+    let _cachedFirestoreAdmins = null;
+    let _firestoreAdminsLoading = null;
+
+    async function loadFirestoreAdmins() {
+      // Returns a Set of lowercased admin emails from Firestore `admins` collection.
+      // These are admins who signed up via /admin/signup with the invite code.
+      if (_cachedFirestoreAdmins) return _cachedFirestoreAdmins;
+      if (_firestoreAdminsLoading) return _firestoreAdminsLoading;
+      _firestoreAdminsLoading = (async () => {
+        if (!FIREBASE_ENABLED || !fbDb) return new Set();
+        try {
+          const snap = await getDocs(collection(fbDb, "admins"));
+          const set = new Set(snap.docs.map(d => d.id.toLowerCase()));
+          _cachedFirestoreAdmins = set;
+          return set;
+        } catch (e) {
+          // If rules block it (e.g. not published yet), just return empty set
+          console.warn("[kaytact] Couldn't load Firestore admins:", e.message);
+          _cachedFirestoreAdmins = new Set();
+          return _cachedFirestoreAdmins;
+        }
+      })();
+      return _firestoreAdminsLoading;
+    }
+
+    async function isAdminEmailAsync(email) {
+      if (!email) return false;
+      const e = email.toLowerCase();
+      // Check env var list first (sync)
+      if (getAdminEmails().includes(e)) return true;
+      // Then check Firestore admins collection (async, cached)
+      const set = await loadFirestoreAdmins();
+      return set.has(e);
+    }
+
+    async function addFirestoreAdmin(email) {
+      // Called when someone signs up via /admin/signup with the correct invite code.
+      if (!FIREBASE_ENABLED || !fbDb) throw new Error("Database unavailable");
+      const e = email.toLowerCase();
+      await setDoc(doc(fbDb, "admins", e), {
+        email: e,
+        createdAt: Date.now(),
+      });
+      // Invalidate cache so the next check picks it up
+      _cachedFirestoreAdmins = null;
     }
 
     const FIREBASE_CONFIG_PRESENT = firebaseConfig.apiKey && firebaseConfig.apiKey !== "FILL_ME_IN";
@@ -1301,6 +1359,8 @@
       if (normalizedPath === "/dashboard/analytics") return renderDashboardAnalytics();
       if (normalizedPath === "/dashboard/qr") return renderDashboardQR();
       if (normalizedPath === "/admin") return renderAdmin();
+      if (normalizedPath === "/admin/login") return renderAdminLogin();
+      if (normalizedPath === "/admin/signup") return renderAdminSignup();
       if (normalizedPath === "/collector") return renderCollectorDashboard();
       if (normalizedPath === "/collector/signup") return renderCollectorSignup();
       if (normalizedPath === "/collector/login") return renderCollectorLogin();
@@ -1582,12 +1642,46 @@
        connectivity probe) so demo mode is correctly detected when
        Firebase is unreachable. */
 
-    function updateTopbarState() {
+    async function updateTopbarState() {
+      // Check if current user is a platform admin (async — checks Firestore)
+      let userIsAdmin = false;
+      if (state.user) {
+        userIsAdmin = getAdminEmails().includes((state.user.email || "").toLowerCase());
+        if (!userIsAdmin) userIsAdmin = await isAdminEmailAsync(state.user.email);
+      }
+
       $$(".topbar-user-slot").forEach((slot) => {
         slot.innerHTML = "";
         if (state.user) {
-          const dash = el("a", { href: "/dashboard" }, "dashboard");
-          slot.appendChild(dash);
+          if (userIsAdmin) {
+            // Show ADMIN badge that links to /admin
+            const adminLink = el("a", {
+              href: "/admin",
+              style: {
+                color: "var(--primary) !important",
+                fontWeight: "600 !important",
+                background: "rgba(104,227,113,0.12)",
+                borderRadius: "6px",
+                padding: "6px 10px",
+              },
+            }, `${ICONS.shield} admin`);
+            slot.appendChild(adminLink);
+          } else {
+            // Show DASHBOARD link
+            const dash = el("a", { href: "/dashboard" }, "dashboard");
+            slot.appendChild(dash);
+          }
+          // Logout icon
+          const logoutBtn = el("button", {
+            style: { padding: "6px 10px" },
+            title: "Sign out",
+            onclick: async () => {
+              await Backend.signOut();
+              toast("Signed out.", { type: "info" });
+              navigate("/");
+            },
+          }, "logout");
+          slot.appendChild(logoutBtn);
         } else {
           const login = el("a", { href: "/login" }, "login");
           const signup = el("a", { href: "/signup" }, "sign up");
@@ -1613,8 +1707,29 @@
     function renderTopbar() {
       const bar = el("div", { class: "topbar" });
       const inner = el("div", { class: "center-col row" });
-      const brand = el("a", { href: "/", class: "brand" });
+      const brand = el("a", { href: "/", class: "brand", title: "kaytact" });
       brand.innerHTML = `<span class="brand-mark">K</span><span>kaytact</span>`;
+
+      // Triple-click brand → /admin/login (secret access)
+      let clickCount = 0;
+      let clickTimer = null;
+      brand.addEventListener("click", (e) => {
+        e.preventDefault();
+        clickCount++;
+        clearTimeout(clickTimer);
+        clickTimer = setTimeout(() => { clickCount = 0; }, 800);
+        if (clickCount >= 3) {
+          clickCount = 0;
+          clearTimeout(clickTimer);
+          navigate("/admin/login");
+          return;
+        }
+        // Single click → go home (after short delay so triple-click can cancel)
+        setTimeout(() => {
+          if (clickCount === 1) navigate("/");
+        }, 250);
+      });
+
       const links = el("div", { class: "topbar-links topbar-user-slot" });
       inner.append(brand, links);
       bar.appendChild(inner);
@@ -2601,10 +2716,11 @@
     async function renderAdmin() {
       const app = $("#app");
       app.innerHTML = `<div class="page-loading"><div class="stack center gap-3"><div class="spinner lg"></div></div></div>`;
-      const user = await requireAuth("/login?next=/admin");
+      const user = await requireAuth("/admin/login?next=/admin");
       if (!user) return;
 
-      if (!isAdminEmail(user.email)) {
+      const userIsAdmin = await isAdminEmailAsync(user.email);
+      if (!userIsAdmin) {
         app.innerHTML = "";
         const page = el("div", { class: "page" });
         page.appendChild(renderTopbar());
@@ -2735,6 +2851,161 @@
       main.appendChild(table);
       page.appendChild(main);
       app.appendChild(page);
+      updateTopbarState();
+    }
+
+    /* ============= Admin Login (/admin/login) ============= */
+    async function renderAdminLogin() {
+      const app = $("#app");
+      app.innerHTML = "";
+
+      const page = el("div", { class: "page" });
+      page.appendChild(renderTopbar());
+      const main = el("main", { class: "center-col", style: { padding: "40px 0 60px" } });
+
+      const head = el("div", { class: "collector-head fade-in" });
+      head.innerHTML = `
+        <div class="eyebrow">// admin access</div>
+        <h1 style="margin-top: 8px;">Platform admin</h1>
+        <p class="sub">Log in to manage the Kaytact platform.</p>
+      `;
+      main.appendChild(head);
+
+      const card = el("div", { class: "card fade-in" });
+      const form = el("form", { class: "stack gap-4" });
+      form.innerHTML = `
+        <div class="field">
+          <label>Email</label>
+          <input id="al-email" type="email" required class="input" placeholder="you@email.com" autocomplete="email" />
+        </div>
+        <div class="field">
+          <label>Password</label>
+          <input id="al-password" type="password" required class="input" placeholder="Your password" autocomplete="current-password" />
+        </div>
+        <button type="submit" class="btn btn-primary btn-block btn-lg" id="al-submit">Log in to admin</button>
+        <div class="auth-foot">
+          No admin account? <a href="/admin/signup">Sign up with invite code</a>
+        </div>
+      `;
+      card.appendChild(form);
+      main.appendChild(card);
+      page.appendChild(main);
+      app.appendChild(page);
+
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const email = $("#al-email", form).value.trim();
+        const password = $("#al-password", form).value;
+        const btn = $("#al-submit", form);
+        const orig = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = `<span class="spinner"></span> Logging in…`;
+        try {
+          await Backend.signIn(email, password);
+          // Check if they're actually an admin
+          const ok = await isAdminEmailAsync(email);
+          if (!ok) {
+            toast("You're signed in, but this account isn't a platform admin.", { type: "error" });
+            await Backend.signOut();
+            btn.disabled = false;
+            btn.innerHTML = orig;
+            return;
+          }
+          toast("Welcome, admin.", { type: "success" });
+          navigate("/admin");
+        } catch (err) {
+          toast(err.message || "Login failed.", { type: "error" });
+          btn.disabled = false;
+          btn.innerHTML = orig;
+        }
+      });
+
+      updateTopbarState();
+    }
+
+    /* ============= Admin Signup with invite code (/admin/signup) ============= */
+    async function renderAdminSignup() {
+      const app = $("#app");
+      app.innerHTML = "";
+
+      const page = el("div", { class: "page" });
+      page.appendChild(renderTopbar());
+      const main = el("main", { class: "center-col", style: { padding: "40px 0 60px" } });
+
+      const head = el("div", { class: "collector-head fade-in" });
+      head.innerHTML = `
+        <div class="eyebrow">// admin signup</div>
+        <h1 style="margin-top: 8px;">Become a platform admin</h1>
+        <p class="sub">Enter your invite code to create an admin account.</p>
+      `;
+      main.appendChild(head);
+
+      const card = el("div", { class: "card fade-in" });
+      const form = el("form", { class: "stack gap-4" });
+      form.innerHTML = `
+        <div class="field">
+          <label>Invite code *</label>
+          <input id="as-code" type="text" required class="input" placeholder="Enter your invite code" autocomplete="off" />
+          <div class="hint">Get this from the platform owner.</div>
+        </div>
+        <div class="field">
+          <label>Email</label>
+          <input id="as-email" type="email" required class="input" placeholder="you@email.com" autocomplete="email" />
+        </div>
+        <div class="edit-row two">
+          <div class="field">
+            <label>Password</label>
+            <input id="as-password" type="password" required minlength="6" class="input" placeholder="At least 6 chars" autocomplete="new-password" />
+          </div>
+          <div class="field">
+            <label>Confirm</label>
+            <input id="as-confirm" type="password" required minlength="6" class="input" placeholder="Repeat password" autocomplete="new-password" />
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block btn-lg" id="as-submit">Create admin account</button>
+        <div class="auth-foot">
+          Already an admin? <a href="/admin/login">Log in</a>
+        </div>
+      `;
+      card.appendChild(form);
+      main.appendChild(card);
+      page.appendChild(main);
+      app.appendChild(page);
+
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const code = $("#as-code", form).value.trim();
+        const email = $("#as-email", form).value.trim();
+        const password = $("#as-password", form).value;
+        const confirm = $("#as-confirm", form).value;
+
+        if (code !== getInviteCode()) {
+          toast("Invalid invite code. Check with the platform owner.", { type: "error" });
+          return;
+        }
+        if (password !== confirm) {
+          toast("Passwords do not match.", { type: "error" });
+          return;
+        }
+
+        const btn = $("#as-submit", form);
+        const orig = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = `<span class="spinner"></span> Creating…`;
+        try {
+          // 1. Sign up with Firebase Auth
+          await Backend.signUp(email, password);
+          // 2. Add to Firestore admins collection
+          await addFirestoreAdmin(email);
+          toast("Admin account created! Welcome.", { type: "success", title: "All set" });
+          navigate("/admin");
+        } catch (err) {
+          toast(err.message || "Couldn't create admin account.", { type: "error" });
+          btn.disabled = false;
+          btn.innerHTML = orig;
+        }
+      });
+
       updateTopbarState();
     }
 
@@ -3255,10 +3526,36 @@
         state.user = u;
         state.authReady = true;
         const { path } = getRoute();
-        if (path.startsWith("/dashboard") || path === "/admin") {
-          if (!u && path !== "/login" && path !== "/signup") {
+        // Protect admin + dashboard + collector routes
+        const isProtected = path.startsWith("/dashboard") ||
+                            path === "/admin" ||
+                            path.startsWith("/collector");
+        const isAuthPage = path === "/login" || path === "/signup" ||
+                           path === "/forgot-password" || path === "/admin/login" ||
+                           path === "/admin/signup" || path === "/collector/login" ||
+                           path === "/collector/signup";
+        if (isProtected && !u && !isAuthPage) {
+          // Redirect to appropriate login page
+          if (path.startsWith("/collector")) {
+            navigate("/collector/login?next=" + encodeURIComponent(path));
+          } else if (path === "/admin") {
+            navigate("/admin/login?next=" + encodeURIComponent(path));
+          } else {
             navigate("/login?next=" + encodeURIComponent(path));
-            return;
+          }
+          return;
+        }
+        // If logged in and on an auth page, redirect to dashboard
+        if (u && isAuthPage && !path.startsWith("/admin/signup")) {
+          // Don't auto-redirect from admin/login if they're already an admin
+          // (they might want to log in as a different account)
+          if (path === "/admin/login") {
+            // Check if they're already an admin — if so, send to /admin
+            isAdminEmailAsync(u.email).then((ok) => {
+              if (ok) navigate("/admin");
+            });
+          } else {
+            navigate("/dashboard");
           }
         }
         updateTopbarState();

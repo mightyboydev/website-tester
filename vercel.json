@@ -2,10 +2,24 @@
   "cleanUrls": true,
   "trailingSlash": false,
   "rewrites": [
-    {
-      "source": "/((?!manifest.json|sw.js|qr-lib.js|icon.svg|icon-192.png|icon-512.png|apple-touch-icon.png|favicon.ico|favicon.png|robots.txt|_next|api).*)",
-      "destination": "/index.html"
-    }
+    { "source": "/", "destination": "/index.html" },
+    { "source": "/admin", "destination": "/index.html" },
+    { "source": "/admin/login", "destination": "/index.html" },
+    { "source": "/admin/signup", "destination": "/index.html" },
+    { "source": "/dashboard", "destination": "/index.html" },
+    { "source": "/dashboard/edit", "destination": "/index.html" },
+    { "source": "/dashboard/analytics", "destination": "/index.html" },
+    { "source": "/dashboard/qr", "destination": "/index.html" },
+    { "source": "/login", "destination": "/index.html" },
+    { "source": "/signup", "destination": "/index.html" },
+    { "source": "/forgot-password", "destination": "/index.html" },
+    { "source": "/collector", "destination": "/index.html" },
+    { "source": "/collector/signup", "destination": "/index.html" },
+    { "source": "/collector/login", "destination": "/index.html" },
+    { "source": "/c/:slug", "destination": "/index.html" },
+    { "source": "/c/:slug/", "destination": "/index.html" },
+    { "source": "/:username", "destination": "/index.html" },
+    { "source": "/(.*)", "destination": "/index.html" }
   ],
   "headers": [
     {

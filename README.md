@@ -93,6 +93,16 @@ service cloud.firestore {
       allow update, delete: if request.auth != null && request.auth.uid == adminId;
     }
 
+    // ===== PLATFORM ADMINS (invite-code system) =====
+    // Any signed-in user can read the admins list (so the app can check if
+    // they're an admin). Only signed-in users can create their own admin
+    // entry (the app checks the invite code before adding).
+    match /admins/{email} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update, delete: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }
