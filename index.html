@@ -1802,27 +1802,27 @@
     function renderTopbar() {
       const bar = el("div", { class: "topbar" });
       const inner = el("div", { class: "center-col row" });
-      const brand = el("a", { href: "/", class: "brand", title: "kaytact" });
+      const brand = el("a", { href: "/", class: "brand", title: "kaytact — triple-click for admin" });
       brand.innerHTML = `<span class="brand-mark">K</span><span>kaytact</span>`;
 
       // Triple-click brand → /admin/login (secret access)
+      // Simpler, more reliable: count clicks within 500ms window
       let clickCount = 0;
-      let clickTimer = null;
       brand.addEventListener("click", (e) => {
         e.preventDefault();
         clickCount++;
-        clearTimeout(clickTimer);
-        clickTimer = setTimeout(() => { clickCount = 0; }, 800);
         if (clickCount >= 3) {
           clickCount = 0;
-          clearTimeout(clickTimer);
           navigate("/admin/login");
           return;
         }
-        // Single click → go home (after short delay so triple-click can cancel)
-        setTimeout(() => {
+        // Reset counter after 500ms of no clicks
+        clearTimeout(brand._tcTimer);
+        brand._tcTimer = setTimeout(() => {
+          // If only 1 click happened, go home
           if (clickCount === 1) navigate("/");
-        }, 250);
+          clickCount = 0;
+        }, 400);
       });
 
       const links = el("div", { class: "topbar-links topbar-user-slot" });
@@ -1965,7 +1965,7 @@
       // Footer — admin link
       const foot = el("div", { class: "fade-in", style: { textAlign: "center", marginTop: "24px" } });
       foot.innerHTML = `
-        <a href="/admin/login" style="font-family: var(--mono); font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; transition: color 0.15s;">admin →</a>
+        <a href="/admin/login" style="font-family: var(--mono); font-size: 14px; color: var(--primary); text-transform: uppercase; letter-spacing: 0.1em; transition: color 0.15s; padding: 10px 20px; border: 1px solid var(--primary-border); border-radius: 10px; background: var(--primary-soft); display: inline-block;">admin login →</a>
         <div class="tiny muted-2" style="margin-top: 12px;">© ${new Date().getFullYear()} Kaytact</div>
       `;
       main.appendChild(foot);
@@ -3829,43 +3829,55 @@
       }
       // Wire auth listener AFTER the probe so demo mode is correctly detected
       // when Firebase is unreachable.
-      Backend.onAuthChange((u) => {
+      Backend.onAuthChange(async (u) => {
         state.user = u;
         state.authReady = true;
         const { path } = getRoute();
-        // Protect admin + dashboard + collector routes
-        const isProtected = path.startsWith("/dashboard") ||
-                            path === "/admin" ||
+
+        // If the platform owner just logged in, auto-create the "kaytact" slug
+        // so contacts submitted on the homepage have somewhere to go.
+        if (u && getAdminEmails().includes((u.email || "").toLowerCase())) {
+          try {
+            const slugTaken = await Backend.isSlugTaken("kaytact");
+            if (!slugTaken) {
+              await Backend.createTenant({ businessName: "Kaytact", slug: "kaytact", whatsappNumber: "" });
+              console.log("[kaytact] Auto-created 'kaytact' slug for platform owner.");
+            }
+          } catch (e) {
+            // Slug might already exist or rules block it — ignore
+          }
+        }
+
+        // Protect admin + collector routes
+        const isProtected = path === "/admin" ||
+                            path.startsWith("/dashboard") ||
                             path.startsWith("/collector");
         const isAuthPage = path === "/login" || path === "/signup" ||
                            path === "/forgot-password" || path === "/admin/login" ||
                            path === "/admin/signup" || path === "/collector/login" ||
                            path === "/collector/signup";
         if (isProtected && !u && !isAuthPage) {
-          // Redirect to appropriate login page
           if (path.startsWith("/collector")) {
             navigate("/collector/login?next=" + encodeURIComponent(path));
           } else if (path === "/admin") {
             navigate("/admin/login?next=" + encodeURIComponent(path));
           } else {
-            navigate("/login?next=" + encodeURIComponent(path));
+            navigate("/admin/login?next=" + encodeURIComponent(path));
           }
           return;
         }
         // If logged in and on an auth page, redirect appropriately
         if (u && isAuthPage && !path.startsWith("/admin/signup")) {
           if (path === "/admin/login") {
-            // Check if they're already an admin — if so, send to /admin
-            isAdminEmailAsync(u.email).then((ok) => {
-              if (ok) navigate("/admin");
-            });
+            const ok = await isAdminEmailAsync(u.email);
+            if (ok) { navigate("/admin"); return; }
           } else if (path === "/login" || path === "/signup") {
-            // Regular login/signup → check if admin, redirect accordingly
-            isAdminEmailAsync(u.email).then((ok) => {
-              navigate(ok ? "/admin" : "/collector");
-            });
+            const ok = await isAdminEmailAsync(u.email);
+            navigate(ok ? "/admin" : "/collector");
+            return;
           } else {
             navigate("/collector");
+            return;
           }
         }
         updateTopbarState();
