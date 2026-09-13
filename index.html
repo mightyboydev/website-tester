@@ -30,7 +30,7 @@
   <script src="/qr-lib.js"></script>
 
   <style>
-    /* ===== Kaytact Design System — hacker-lime ===== */
+    /* ===== Kaytact Design System — premium dark + green ===== */
     *, *::before, *::after { box-sizing: border-box; }
     :root {
       --bg: #070E16;
@@ -41,9 +41,15 @@
       --card: #111921;
       --border: #1B2530;
       --input: #1B2530;
-      --primary: #68E371;
-      --primary-hover: #5BC965;
+      --primary: #22C55E;
+      --primary-2: #10B981;
+      --primary-hover: #16A34A;
       --primary-fg: #070E16;
+      --primary-glow: rgba(34,197,94,0.4);
+      --primary-soft: rgba(34,197,94,0.12);
+      --primary-border: rgba(34,197,94,0.2);
+      --glass-bg: rgba(255,255,255,0.03);
+      --glass-border: rgba(34,197,94,0.2);
       --whatsapp: #25D366;
       --whatsapp-hover: #1ebe5b;
       --red: #FF6B6B;
@@ -68,7 +74,22 @@
       min-height: 100dvh;
       font-size: 15px;
       font-weight: 400;
+      position: relative;
     }
+    /* Radial green glow behind hero */
+    body::before {
+      content: '';
+      position: fixed;
+      top: -20%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 600px;
+      height: 600px;
+      background: radial-gradient(circle, rgba(34,197,94,0.15) 0%, rgba(16,185,129,0.05) 40%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+    .page, .topbar, #toasts { position: relative; z-index: 1; }
     img { max-width: 100%; display: block; }
     a { color: inherit; text-decoration: none; }
     button { font-family: inherit; cursor: pointer; border: 0; background: none; color: inherit; }
@@ -147,9 +168,11 @@
     }
     .brand-mark {
       width: 26px; height: 26px; border-radius: 7px;
-      background: var(--primary); color: var(--primary-fg);
+      background: linear-gradient(135deg, var(--primary), var(--primary-2));
+      color: var(--primary-fg);
       display: grid; place-items: center; font-weight: 700; font-size: 14px;
       font-family: var(--font);
+      box-shadow: 0 0 12px rgba(34,197,94,0.3);
     }
     .topbar-links { display: flex; gap: 6px; align-items: center; }
     .topbar-links a, .topbar-links button {
@@ -164,47 +187,69 @@
       display: inline-flex; align-items: center; justify-content: center; gap: 8px;
       padding: 8px 16px; border-radius: var(--radius); font-weight: 600; font-size: 15px;
       font-family: var(--font);
-      transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.1s, opacity 0.15s;
+      transition: all 0.2s ease;
       cursor: pointer; border: 1px solid transparent; min-height: 44px;
       -webkit-tap-highlight-color: transparent; user-select: none; white-space: nowrap;
     }
     .btn:active { transform: scale(0.98); }
     .btn:disabled { opacity: 0.5; cursor: not-allowed; }
     .btn-primary {
-      background: var(--primary); color: var(--primary-fg);
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px -1px rgba(0,0,0,0.1);
+      background: linear-gradient(135deg, var(--primary), var(--primary-2));
+      color: var(--primary-fg);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
     }
-    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-primary:hover {
+      background: linear-gradient(135deg, var(--primary-hover), var(--primary));
+      box-shadow: 0 0 20px var(--primary-glow), 0 1px 3px rgba(0,0,0,0.2);
+    }
     .btn-whatsapp {
       background: var(--whatsapp); color: #000;
     }
-    .btn-whatsapp:hover { background: var(--whatsapp-hover); }
-    .btn-ghost {
-      background: transparent; color: var(--fg); border-color: var(--border);
+    .btn-whatsapp:hover {
+      background: var(--whatsapp-hover);
+      box-shadow: 0 0 20px rgba(37,211,102,0.4);
     }
-    .btn-ghost:hover { border-color: var(--muted-2); color: var(--primary); }
+    .btn-ghost {
+      background: var(--glass-bg); color: var(--fg);
+      border-color: var(--primary-border);
+      backdrop-filter: blur(8px);
+    }
+    .btn-ghost:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+      box-shadow: 0 0 15px rgba(34,197,94,0.15);
+    }
     .btn-sm { padding: 6px 12px; font-size: 13px; min-height: 36px; border-radius: 8px; }
     .btn-lg { padding: 12px 20px; font-size: 16px; min-height: 48px; }
     .btn-block { width: 100%; }
     .btn-icon { padding: 8px; min-height: 40px; min-width: 40px; }
     .btn svg { width: 18px; height: 18px; flex-shrink: 0; }
 
-    /* ===== Cards (glass) ===== */
+    /* ===== Cards (glassmorphism) ===== */
     .card {
-      background: rgba(17,25,33,0.6);
-      backdrop-filter: blur(8px) saturate(140%);
-      -webkit-backdrop-filter: blur(8px) saturate(140%);
-      border: 1px solid var(--border);
+      background: var(--glass-bg);
+      backdrop-filter: blur(12px) saturate(140%);
+      -webkit-backdrop-filter: blur(12px) saturate(140%);
+      border: 1px solid var(--glass-border);
       border-radius: var(--radius-lg);
       padding: 24px;
     }
     .card-soft {
-      background: rgba(17,25,33,0.4);
+      background: var(--glass-bg);
       backdrop-filter: blur(8px);
       -webkit-backdrop-filter: blur(8px);
-      border: 1px solid var(--border);
+      border: 1px solid var(--primary-border);
       border-radius: var(--radius-lg);
       padding: 20px;
+    }
+
+    /* ===== Gradient text ===== */
+    .gradient-text {
+      background: linear-gradient(135deg, #22C55E 0%, #10B981 40%, #68E371 80%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      color: transparent;
     }
 
     /* ===== Forms ===== */
@@ -219,13 +264,13 @@
     .field .hint.err { color: var(--red); }
     .input, .textarea, .select {
       width: 100%; padding: 8px 12px; border-radius: var(--radius);
-      background: transparent; border: 1px solid var(--input);
-      transition: border-color 0.15s, box-shadow 0.15s;
+      background: rgba(255,255,255,0.02); border: 1px solid var(--input);
+      transition: border-color 0.2s, box-shadow 0.2s;
       min-height: 36px; font-family: var(--font); font-size: 14px; color: var(--fg);
     }
     .input:focus, .textarea:focus, .select:focus {
       outline: none; border-color: var(--primary);
-      box-shadow: 0 0 0 1px var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-soft);
     }
     .input:disabled { color: var(--muted); cursor: not-allowed; opacity: 0.7; }
     .textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
@@ -233,7 +278,7 @@
       display: flex; align-items: stretch; border-radius: var(--radius);
       border: 1px solid var(--input); overflow: hidden; transition: border-color 0.15s, box-shadow 0.15s;
     }
-    .input-prefix:focus-within { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary); }
+    .input-prefix:focus-within { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
     .input-prefix .prefix {
       padding: 0 10px; display: grid; place-items: center; color: var(--fg);
       font-family: var(--mono); font-size: 14px; border-right: 1px solid var(--border);
@@ -477,11 +522,18 @@
     @media (min-width: 540px) { .stats-grid { grid-template-columns: repeat(3, 1fr); } }
     .stat-card {
       padding: 14px; border-radius: var(--radius);
-      background: rgba(17,25,33,0.4); border: 1px solid var(--border);
+      background: var(--glass-bg);
+      border: 1px solid var(--primary-border);
+      backdrop-filter: blur(8px);
+      transition: box-shadow 0.2s, border-color 0.2s;
+    }
+    .stat-card:hover {
+      border-color: var(--primary);
+      box-shadow: 0 0 15px rgba(34,197,94,0.15);
     }
     .stat-card .ico {
       width: 28px; height: 28px; border-radius: 7px;
-      background: rgba(104,227,113,0.1); color: var(--primary);
+      background: var(--primary-soft); color: var(--primary);
       display: grid; place-items: center; margin-bottom: 8px;
     }
     .stat-card .ico svg { width: 14px; height: 14px; }
@@ -1713,8 +1765,8 @@
             adminLink.addEventListener("click", (e) => { e.preventDefault(); navigate("/admin"); });
             slot.appendChild(adminLink);
           } else {
-            // Show DASHBOARD link
-            const dash = el("a", { href: "/dashboard" }, "dashboard");
+            // Non-admin logged-in users (collector admins) → link to /collector
+            const dash = el("a", { href: "/collector" }, "collector");
             slot.appendChild(dash);
           }
           // Logout button
@@ -1793,7 +1845,7 @@
       const head = el("div", { class: "fade-in", style: { textAlign: "center", marginBottom: "28px" } });
       head.innerHTML = `
         <div class="eyebrow">// contacts</div>
-        <h1 style="margin-top: 12px;">by <span class="primary-text">Kaytact</span></h1>
+        <h1 style="margin-top: 12px;">by <span class="gradient-text">Kaytact</span></h1>
         <p class="muted small" style="margin-top: 12px;">Drop your details. You'll be saved in the book.</p>
       `;
       main.appendChild(head);
@@ -1863,7 +1915,7 @@
       ccInput.addEventListener("input", updatePreview);
       phoneInput.addEventListener("input", updatePreview);
 
-      // Form submit → show success
+      // Form submit → save contact + show success
       form.addEventListener("submit", async (e) => {
         e.preventDefault();
         const firstName = $("#h-firstname", form).value.trim();
@@ -1873,6 +1925,22 @@
         if (!firstName) { toast("First name is required.", { type: "error" }); return; }
         if (!phone) { toast("Phone number is required.", { type: "error" }); return; }
         const fullPhone = (countryCode || "").replace(/[^\d+]/g, "") + (phone || "").replace(/[^\d]/g, "");
+
+        // Save the contact to the platform owner's collector (slug: "kaytact")
+        const submitBtn = form.querySelector("button[type=submit]");
+        const origText = submitBtn.innerHTML;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = `<span class="spinner"></span> Saving…`;
+        try {
+          await Backend.submitContact("kaytact", { firstName, lastName, countryCode, phone });
+        } catch (err) {
+          // If the "kaytact" slug doesn't exist yet, the contact can't be saved.
+          // Show success anyway (don't block the user) but log the error.
+          console.warn("[homepage] Couldn't save contact:", err.message);
+        }
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = origText;
+
         // Show success state
         card.innerHTML = `
           <div class="success-state">
@@ -1973,7 +2041,7 @@
         const google = el("button", { type: "button", class: "btn btn-ghost btn-block" });
         google.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24"><path fill="#fff" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#fff" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" opacity="0.6"/></svg> <span>Continue with Google</span>`;
         google.onclick = async () => {
-          try { btn.disabled = true; google.disabled = true; await Backend.signInWithGoogle(); toast("Welcome to Kaytact.", { type: "success" }); navigate("/dashboard"); }
+          try { btn.disabled = true; google.disabled = true; await Backend.signInWithGoogle(); toast("Welcome to Kaytact.", { type: "success" }); navigate("/admin"); }
           catch (e) { toast(e.message || "Google sign-in failed.", { type: "error" }); }
           finally { btn.disabled = false; google.disabled = false; }
         };
@@ -2018,7 +2086,7 @@
             } else {
               // Check if admin → redirect to /admin, otherwise /dashboard
               const ok = await isAdminEmailAsync(email);
-              navigate(ok ? "/admin" : "/dashboard");
+              navigate(ok ? "/admin" : "/collector");
             }
           } else {
             await Backend.resetPassword(email);
@@ -2828,8 +2896,8 @@
             <div class="empty">
               <div class="ico" style="color: var(--red);">${ICONS.lock}</div>
               <h3>Admins only</h3>
-              <p>Your account doesn't have admin privileges.<br/>Add your email to <span class="mono">window.KAYTACT_ADMIN_EMAILS</span> in <span class="mono">index.html</span>.</p>
-              <a class="btn btn-primary" href="/dashboard" style="margin-top: 16px;">Back to dashboard</a>
+              <p>Your account doesn't have admin privileges.</p>
+              <a class="btn btn-primary" href="/" style="margin-top: 16px;">Go home</a>
             </div>
           </div>
         `;
@@ -2839,14 +2907,31 @@
         return;
       }
 
+      // Auto-create "kaytact" slug for the platform owner if it doesn't exist.
+      // This is so contacts submitted on the homepage (/) are saved here.
+      try {
+        const slugTaken = await Backend.isSlugTaken("kaytact");
+        if (!slugTaken) {
+          await Backend.createTenant({ businessName: "Kaytact", slug: "kaytact", whatsappNumber: "" });
+        }
+      } catch (e) {
+        // Slug might already exist or rules block it — ignore
+      }
+
+      // Load platform stats + the platform owner's own contacts (from the homepage form)
       let profiles = [], statsList = [];
+      let myContacts = [];
       let dataError = null;
       try {
         [profiles, statsList] = await Promise.all([Backend.listAllProfiles(), Backend.listAllStats()]);
       } catch (err) {
-        // Don't block the whole panel — show it with empty data + a warning
         dataError = err.message || "Permission denied";
-        console.warn("[admin] Couldn't load data:", dataError);
+      }
+      // Load the platform owner's contacts (submitted from the homepage form)
+      try {
+        myContacts = await Backend.getMyContacts();
+      } catch (e) {
+        // If this fails, we still show the rest of the admin panel
       }
       const statsMap = Object.fromEntries(statsList.map(s => [s.username, s.stats]));
 
@@ -2971,6 +3056,53 @@
       }, 200));
 
       main.appendChild(table);
+
+      // ===== My Contacts section (contacts submitted from the homepage) =====
+      const myContactsCard = el("div", { class: "card fade-in", style: { marginTop: "16px" } });
+      myContactsCard.innerHTML = `
+        <div class="row between" style="margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+          <div>
+            <div class="eyebrow-sm" style="margin-bottom: 4px;">// homepage contacts</div>
+            <h3 style="font-size: 16px;">Contacts from your homepage</h3>
+            <p class="tiny muted" style="margin-top: 4px;">${myContacts.length} contact${myContacts.length === 1 ? "" : "s"} submitted</p>
+          </div>
+          ${myContacts.length > 0 ? `<button class="btn btn-primary btn-sm" id="admin-download-vcf">${ICONS.download} Download .vcf</button>` : ""}
+        </div>
+        ${myContacts.length === 0 ? `
+          <div class="empty" style="padding: 20px;">
+            <p class="muted small">No contacts yet. Share your homepage link to collect contacts.</p>
+          </div>
+        ` : `
+          <div class="contact-list">
+            ${myContacts.slice(0, 50).map(c => {
+              const initials = ((c.firstName || "?").charAt(0) + (c.lastName || "").charAt(0)).toUpperCase();
+              const name = ((c.firstName || "") + " " + (c.lastName || "")).trim();
+              const date = c.createdAt ? new Date(c.createdAt).toLocaleDateString() : "";
+              return `
+                <div class="contact-item">
+                  <div class="avatar-sm">${escapeHtml(initials)}</div>
+                  <div class="info">
+                    <div class="name">${escapeHtml(name || "Unknown")}</div>
+                    <div class="phone">${escapeHtml(c.fullPhone || (c.countryCode || "") + (c.phone || ""))} ${date ? `· ${escapeHtml(date)}` : ""}</div>
+                  </div>
+                </div>
+              `;
+            }).join("")}
+            ${myContacts.length > 50 ? `<p class="tiny muted" style="text-align: center; margin-top: 8px;">Showing 50 of ${myContacts.length}. Download .vcf for all.</p>` : ""}
+          </div>
+        `}
+      `;
+      main.appendChild(myContactsCard);
+
+      // Wire download .vcf
+      const adminDlBtn = $("#admin-download-vcf", myContactsCard);
+      if (adminDlBtn && myContacts.length > 0) {
+        adminDlBtn.onclick = () => {
+          downloadBulkVCard(myContacts, "kaytact-contacts");
+          toast(`Downloaded ${myContacts.length} contacts as .vcf`, { type: "success", title: "File ready" });
+        };
+      }
+
       page.appendChild(main);
       app.appendChild(page);
       updateTopbarState();
@@ -3730,10 +3862,10 @@
           } else if (path === "/login" || path === "/signup") {
             // Regular login/signup → check if admin, redirect accordingly
             isAdminEmailAsync(u.email).then((ok) => {
-              navigate(ok ? "/admin" : "/dashboard");
+              navigate(ok ? "/admin" : "/collector");
             });
           } else {
-            navigate("/dashboard");
+            navigate("/collector");
           }
         }
         updateTopbarState();
