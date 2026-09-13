@@ -96,7 +96,7 @@ service cloud.firestore {
                             && resource.data.adminId == request.auth.uid;
     }
 
-    match /tenants/{adminId}/profile {
+    match /tenants/{adminId}/profile/{docId} {
       allow read, write: if request.auth != null && request.auth.uid == adminId;
     }
 
