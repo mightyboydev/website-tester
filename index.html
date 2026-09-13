@@ -3644,10 +3644,48 @@
       const user = await requireAuth("/collector/login");
       if (!user) return;
 
-      const tenant = await Backend.getMyTenant();
+      // Wrap in try/catch so permission errors don't cause infinite loading
+      let tenant = null;
+      let contacts = [];
+      let loadError = null;
+      try {
+        tenant = await Backend.getMyTenant();
+        if (tenant) {
+          contacts = await Backend.getMyContacts();
+        }
+      } catch (err) {
+        loadError = err.message || "Permission denied";
+        console.warn("[collector] Couldn't load:", loadError);
+      }
+
+      app.innerHTML = "";
+
+      // If there was a permission error, show it but don't block forever
+      if (loadError) {
+        const page = el("div", { class: "page" });
+        page.appendChild(renderTopbar());
+        const main = el("main", { class: "center-col", style: { padding: "40px 0 60px" } });
+        main.innerHTML = `
+          <div class="card fade-in">
+            <div class="eyebrow-sm" style="color: var(--red); margin-bottom: 8px;">// data load error</div>
+            <h3 style="font-size: 18px; margin-bottom: 8px;">Couldn't load your collector</h3>
+            <p class="muted small" style="margin-bottom: 12px;">${escapeHtml(loadError)}</p>
+            <p class="tiny muted" style="margin-bottom: 16px;">This usually means the Firestore rules need to be published. Check README.md.</p>
+            <div class="row gap-2" style="flex-wrap: wrap;">
+              <button class="btn btn-primary btn-sm" id="cd-retry">Try again</button>
+              <a class="btn btn-ghost btn-sm" href="/collector/signup">Create a new collector</a>
+            </div>
+          </div>
+        `;
+        page.appendChild(main);
+        app.appendChild(page);
+        $("#cd-retry", main).onclick = () => renderCollectorDashboard();
+        updateTopbarState();
+        return;
+      }
+
       if (!tenant) {
         // No tenant yet → prompt to create one
-        app.innerHTML = "";
         const page = el("div", { class: "page" });
         page.appendChild(renderTopbar());
         const main = el("main", { class: "center-col", style: { padding: "40px 0 60px" } });
@@ -3667,7 +3705,6 @@
         return;
       }
 
-      const contacts = await Backend.getMyContacts();
       const publicUrl = `${siteUrl()}/c/${encodeURIComponent(tenant.slug)}`;
 
       app.innerHTML = "";
