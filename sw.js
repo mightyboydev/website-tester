@@ -2,11 +2,12 @@
  * This prevents stale cached pages from showing 404s.
  * Static assets (icons, QR lib) are cached for offline use.
  */
-const CACHE = "kaytact-v2";
+const CACHE = "kaytact-v3";
 const ASSETS = [
-  "/icon.svg",
   "/icon-192.png",
   "/icon-512.png",
+  "/apple-touch-icon.png",
+  "/favicon.ico",
   "/qr-lib.js",
   "/manifest.json",
 ];
